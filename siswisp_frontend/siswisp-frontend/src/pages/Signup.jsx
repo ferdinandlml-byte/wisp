@@ -3,21 +3,36 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-export default function Login() {
+export default function Signup() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(email, password);
+      await register(name, email, password);
+      toast.success('¡Registro exitoso!');
       navigate('/');
-    } catch {
-      toast.error('Credenciales incorrectas');
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Error en el registro';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -50,7 +65,7 @@ export default function Login() {
             SISWISP
           </div>
           <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: 4 }}>
-            SISTEMA DE ADMINISTRACIÓN ISP
+            REGISTRO DE USUARIO
           </div>
           <div style={{
             width: 40, height: 2, background: 'var(--accent)',
@@ -61,11 +76,11 @@ export default function Login() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
-              Correo electrónico
+              Nombre completo
             </label>
             <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="admin@miwisp.com"
+              type="text" value={name} onChange={e => setName(e.target.value)} required
+              placeholder="Tu nombre"
               style={{
                 width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
                 borderRadius: 'var(--radius)', padding: '12px 16px', color: 'var(--text)',
@@ -73,12 +88,43 @@ export default function Login() {
               }}
             />
           </div>
+
+          <div>
+            <label style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
+              Correo electrónico
+            </label>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              placeholder="tu@email.com"
+              style={{
+                width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)', padding: '12px 16px', color: 'var(--text)',
+                fontFamily: 'var(--font)', fontSize: 14, outline: 'none',
+              }}
+            />
+          </div>
+
           <div>
             <label style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
               Contraseña
             </label>
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="••••••••"
+              style={{
+                width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)', padding: '12px 16px', color: 'var(--text)',
+                fontFamily: 'var(--font)', fontSize: 14, outline: 'none',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
+              Confirmar contraseña
+            </label>
+            <input
+              type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required
               placeholder="••••••••"
               style={{
                 width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
@@ -98,14 +144,14 @@ export default function Login() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {loading ? <><span className="spinner" style={{ borderTopColor: '#000' }} /> Ingresando...</> : 'Ingresar al sistema'}
+            {loading ? <><span className="spinner" style={{ borderTopColor: '#000' }} /> Registrando...</> : 'Crear cuenta'}
           </button>
         </form>
 
         <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text3)', fontFamily: 'var(--font)' }}>
-          ¿Sin cuenta aún?{' '}
-          <Link to="/signup" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-            Registrarse aquí
+          ¿Ya tienes cuenta?{' '}
+          <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+            Inicia sesión
           </Link>
         </div>
 

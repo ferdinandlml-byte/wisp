@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Payments from './pages/Payments';
@@ -41,6 +42,7 @@ export default function App() {
         />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<PrivateLayout><Dashboard /></PrivateLayout>} />
           <Route path="/clients" element={<PrivateLayout><Clients /></PrivateLayout>} />
           <Route path="/payments" element={<PrivateLayout><Payments /></PrivateLayout>} />

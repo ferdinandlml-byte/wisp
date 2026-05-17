@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, getMe } from '../api';
+import { login as apiLogin, register as apiRegister, getMe } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -27,13 +27,23 @@ export function AuthProvider({ children }) {
     return me.data;
   };
 
+  const register = async (name, email, password) => {
+    const { data } = await apiRegister(name, email, password);
+    // Después de registrar, login automáticamente
+    const loginResult = await apiLogin(email, password);
+    localStorage.setItem('siswisp_token', loginResult.data.access_token);
+    const me = await getMe();
+    setUser(me.data);
+    return me.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('siswisp_token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
