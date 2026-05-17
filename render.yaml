@@ -8,19 +8,14 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PORT
-        value: 10000
       - key: DATABASE_URL
-        fromDatabase:
-          name: siswisp_db
-          property: connectionString
+        value: sqlite:///./test.db
       - key: REDIS_URL
-        fromService:
-          name: siswisp-redis
-          type: pserv
-          property: connectionString
+        value: redis://localhost:6379
+      - key: SECRET_KEY
+        value: your-secret-key-change-in-production
 
-  # Frontend React (carpeta actual)
+  # Frontend React
   - type: web
     name: siswisp-frontend
     runtime: node
@@ -28,23 +23,3 @@ services:
     rootDir: siswisp_frontend/siswisp-frontend
     buildCommand: npm install && npm run build
     startCommand: npm start
-    envVars:
-      - key: REACT_APP_API_URL
-        fromService:
-          name: siswisp-backend
-          type: web
-          property: url
-
-  # Base de datos PostgreSQL
-  - type: pserv
-    name: siswisp_db
-    plan: free
-    runtime: postgresql
-    ipAllowList: []
-
-  # Redis para Celery
-  - type: pserv
-    name: siswisp-redis
-    plan: free
-    runtime: redis
-    ipAllowList: []
