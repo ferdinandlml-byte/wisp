@@ -1,0 +1,54 @@
+services:
+  # Backend FastAPI
+  - type: web
+    name: siswisp-backend
+    runtime: python
+    pythonVersion: 3.13
+    plan: free
+    rootDir: siswisp_backend/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: siswisp_db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: siswisp-redis
+          type: pserv
+          property: connectionString
+
+  # Frontend React
+  - type: web
+    name: siswisp-frontend
+    runtime: node
+    nodeVersion: 20
+    plan: free
+    rootDir: siswisp_frontend/siswisp-frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: siswisp-backend
+          type: web
+          property: url
+
+  # Base de datos PostgreSQL
+  - type: pserv
+    name: siswisp_db
+    plan: free
+    runtime: postgresql
+    ipAllowList: []
+
+  # Redis para Celery
+  - type: pserv
+    name: siswisp-redis
+    plan: free
+    runtime: redis
+    ipAllowList: []

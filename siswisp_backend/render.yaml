@@ -1,0 +1,48 @@
+services:
+  # Backend FastAPI (gratis en Render)
+  - type: web
+    name: siswisp-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MIKROTIK_HOST
+        sync: false
+      - key: MIKROTIK_USER
+        sync: false
+      - key: MIKROTIK_PASSWORD
+        sync: false
+      - key: EVOLUTION_API_URL
+        sync: false
+      - key: EVOLUTION_API_KEY
+        sync: false
+
+  # Worker Celery (tareas automáticas)
+  - type: worker
+    name: siswisp-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.tasks.billing.celery_app worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+  # Celery Beat (scheduler)
+  - type: worker
+    name: siswisp-beat
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.tasks.billing.celery_app beat --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
