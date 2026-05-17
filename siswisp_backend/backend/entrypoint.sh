@@ -1,3 +1,5 @@
-#!/bin/sh
-cd /app
-exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 wsgi:app
+#!/bin/bash
+export FLASK_APP=app.main:app
+export FLASK_ENV=production
+exec python -m flask run --host=0.0.0.0 --port=$PORT
+
