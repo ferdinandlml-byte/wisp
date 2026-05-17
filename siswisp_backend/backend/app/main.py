@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from app.core.database import Base, engine, get_db_session
+from app.core.database import Base, engine
 from app.api.routes.flask_auth import auth_bp
 from app.api.routes.flask_clients import clients_bp
 from app.api.routes.flask_payments import payments_bp
