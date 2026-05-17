@@ -23,7 +23,7 @@ services:
           type: pserv
           property: connectionString
 
-  # Frontend React
+  # Frontend React (carpeta actual)
   - type: web
     name: siswisp-frontend
     runtime: node

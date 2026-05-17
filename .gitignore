@@ -1,3 +1,6 @@
+# Frontend duplicado (usar siswisp_frontend en su lugar)
+siswisp_backend/frontend/
+
 # Python
 __pycache__/
 *.py[cod]
