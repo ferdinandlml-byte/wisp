@@ -3,7 +3,6 @@ services:
   - type: web
     name: siswisp-backend
     runtime: python
-    pythonVersion: 3.12
     plan: free
     rootDir: siswisp_backend/backend
     buildCommand: pip install -r requirements.txt
@@ -25,7 +24,6 @@ services:
   - type: web
     name: siswisp-frontend
     runtime: node
-    nodeVersion: 20
     plan: free
     rootDir: siswisp_frontend/siswisp-frontend
     buildCommand: npm install && npm run build
