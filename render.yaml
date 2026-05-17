@@ -2,10 +2,9 @@ services:
   # Backend FastAPI
   - type: web
     name: siswisp-backend
-    runtime: python
+    runtime: docker
     plan: free
-    rootDir: siswisp_backend/backend
-    buildCommand: pip install -r requirements.txt
+    dockerfilePath: ./siswisp_backend/Dockerfile
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
