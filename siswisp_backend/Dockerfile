@@ -7,8 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
-RUN chmod +x entrypoint.sh
-
 EXPOSE 10000
 
-CMD ["/bin/bash", "/app/entrypoint.sh"]
+# Run Flask directly without bash script
+CMD ["python", "-c", "import os; os.environ['FLASK_ENV']='production'; from app.main import app; app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False, threaded=True)"]
+
