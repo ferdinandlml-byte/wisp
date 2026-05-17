@@ -1,14 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
 import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.database import get_db
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+from app.core.database import SessionLocal
+from app.models import User
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -26,6 +22,7 @@ def hash_password(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Crear JWT token"""
     to_encode = data.copy()
     expire = datetime.utcnow() + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -35,26 +32,27 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_token(token: str) -> dict:
+    """Decodificar JWT token"""
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    except jwt.ExpiredSignatureError:
+        raise Exception("Token expirado")
+    except jwt.InvalidTokenError:
+        raise Exception("Token inválido")
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-):
+def get_current_user(token: str):
+    """Obtener usuario actual desde token (para Flask)"""
     payload = decode_token(token)
     user_id: int = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=401, detail="Token inválido")
-    from app.models import User
+        raise Exception("Token inválido")
+    
+    db = SessionLocal()
     user = db.query(User).filter(User.id == int(user_id)).first()
+    db.close()
+    
     if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        raise Exception("Usuario no encontrado o inactivo")
+    
     return user
