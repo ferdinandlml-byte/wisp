@@ -3,7 +3,7 @@ from flask_cors import CORS
 from app.core.database import Base, engine
 from app.api.routes.flask_auth import auth_bp
 from app.api.routes.flask_clients import clients_bp
-from app.api.routes.flask_payments import payments_bp
+from app.api.routes.flask_payments import payments_bp, dashboard_bp
 from app.api.routes.flask_plans import plans_bp
 import os
 
@@ -26,6 +26,7 @@ CORS(app, supports_credentials=True, resources={
 app.register_blueprint(auth_bp)
 app.register_blueprint(clients_bp)
 app.register_blueprint(payments_bp)
+app.register_blueprint(dashboard_bp)
 app.register_blueprint(plans_bp)
 
 
