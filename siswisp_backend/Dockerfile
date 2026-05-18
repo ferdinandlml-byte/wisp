@@ -9,8 +9,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend/ .
 
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 EXPOSE 10000
 
-# Run Flask with explicit Python path and unbuffered output
-CMD ["/usr/local/bin/python3", "-u", "run.py"]
+# Run using simple shell script
+ENTRYPOINT ["/bin/sh", "/app/start.sh"]
 
