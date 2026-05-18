@@ -9,11 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend/ .
 
-# Make startup script executable
-RUN chmod +x /app/start.sh
-
 EXPOSE 10000
 
-# Run using simple shell script
-ENTRYPOINT ["/bin/sh", "/app/start.sh"]
+# Direct Python execution without intermediate scripts
+CMD exec python3 -u run.py
 
