@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: siswisp_backend/Dockerfile
+    ports:
+      - "10000:10000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=sqlite:///./test.db
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - PORT=10000
+    volumes:
+      - ./siswisp_backend/backend:/app
+    command: python3 -u run.py
+
+  frontend:
+    build:
+      context: ./siswisp_frontend/siswisp-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:10000
+    depends_on:
+      - backend
+    volumes:
+      - ./siswisp_frontend/siswisp-frontend/src:/app/src

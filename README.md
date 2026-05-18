@@ -94,96 +94,130 @@ siswisp/
 
 ## 📦 Installation
 
+### Quick Start (Recommended)
+
+Clone and run with a single command:
+
+#### Windows
+```bash
+git clone https://github.com/ferdinandlml-byte/wisp.git
+cd wisp
+setup.bat
+```
+
+#### Linux/Mac
+```bash
+git clone https://github.com/ferdinandlml-byte/wisp.git
+cd wisp
+chmod +x setup.sh
+./setup.sh
+```
+
+This will:
+- Create Python virtual environment
+- Install all dependencies (backend & frontend)
+- Initialize database with admin user
+- Set up environment variables
+
+Default credentials: `admin@miwisp.com` / `Wisp@2026`
+
+### Using Docker Compose
+
+Start both backend and frontend with Docker:
+
+```bash
+git clone https://github.com/ferdinandlml-byte/wisp.git
+cd wisp
+docker-compose up
+```
+
+Then visit:
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:10000
+
 ### Prerequisites
 - Python 3.9+
 - Node.js 16+
+- Docker & Docker Compose (optional)
 - pip (Python package manager)
 - npm (Node package manager)
 
-### Backend Setup
+### Manual Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/ferdinandlml-byte/wisp.git
-   cd wisp
-   ```
+**Backend Setup:**
+```bash
+cd siswisp_backend/backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python create_admin_user.py
+python run.py
+```
 
-2. **Create Python virtual environment**
-   ```bash
-   cd siswisp_backend/backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-5. **Initialize database**
-   ```bash
-   python create_admin_user.py  # Create initial admin user
-   ```
-
-6. **Run application**
-   ```bash
-   python run.py
-   ```
-
-   Backend will be available at `http://localhost:10000`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd siswisp_frontend/siswisp-frontend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set environment variables**
-   ```bash
-   cp .env.example .env
-   # Configure REACT_APP_API_URL to point to backend
-   ```
-
-4. **Run development server**
-   ```bash
-   npm start
-   ```
-
-   Frontend will be available at `http://localhost:3000`
+**Frontend Setup:**
+```bash
+cd siswisp_frontend/siswisp-frontend
+npm install
+npm start
+```
 
 ## 🚀 Deployment
 
-### Deploy to Render.com
+### Local Development (Recommended for GitHub)
 
-1. **Connect GitHub repository**
-   - Link your GitHub account to Render.com
-   - Select this repository
+The easiest way to run SISWISP is locally using the provided setup scripts or Docker Compose:
 
-2. **Deploy using Blueprint**
-   ```bash
-   # render.yaml contains infrastructure as code
-   # Render will automatically detect and deploy both services
-   ```
+**Quick Start:**
+```bash
+setup.bat  # Windows
+# OR
+./setup.sh  # Linux/Mac
+```
 
-3. **Configure environment variables**
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `SECRET_KEY`: JWT secret key (generate a strong one)
+**With Docker:**
+```bash
+docker-compose up
+```
 
-4. **Deploy**
-   - Push to main branch
-   - Render will automatically build and deploy
+### Production Deployment
+
+For production environments, you can deploy to:
+
+- **Docker Container**: Use the included `Dockerfile`
+- **Cloud Platforms**: AWS, Heroku, DigitalOcean, etc.
+- **VPS**: Traditional virtual private servers
+
+#### Using Docker for Production
+
+```bash
+docker build -t siswisp-backend siswisp_backend/
+docker run -p 10000:10000 \
+  -e DATABASE_URL=postgresql://user:pass@localhost/siswisp \
+  -e SECRET_KEY=your-production-secret \
+  siswisp-backend
+```
+
+#### Environment Variables for Production
+
+```bash
+# Backend
+DATABASE_URL=postgresql://user:password@host:port/database
+SECRET_KEY=your-very-secret-key-change-this
+FLASK_ENV=production
+PORT=10000
+
+# Frontend
+REACT_APP_API_URL=https://your-api-domain.com
+```
+
+### Deployment with Render.com (Optional)
+
+If you want to deploy to Render.com:
+
+1. Connect GitHub repository to Render
+2. Use the `render.yaml` configuration
+3. Set environment variables in Render dashboard
+4. Push to main branch to auto-deploy
 
 ## 📚 API Documentation
 
