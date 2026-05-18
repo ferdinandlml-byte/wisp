@@ -93,9 +93,15 @@ def create_payment():
         return jsonify({"detail": f"Campos requeridos: {', '.join(required)}"}), 400
     
     try:
-        due_date = datetime.fromisoformat(data.get("due_date"))
-    except (ValueError, TypeError):
-        return jsonify({"detail": "due_date debe ser ISO format"}), 400
+        due_date_str = data.get("due_date")
+        # Intentar parsear como YYYY-MM-DD o ISO format
+        if 'T' in due_date_str:
+            due_date = datetime.fromisoformat(due_date_str.split('.')[0])  # Remover microseconds
+        else:
+            # Es formato YYYY-MM-DD
+            due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+    except (ValueError, TypeError, AttributeError):
+        return jsonify({"detail": f"due_date inválido: {data.get('due_date')}. Use formato YYYY-MM-DD"}), 400
     
     db = get_db()
     payment = Payment(

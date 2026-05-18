@@ -36,11 +36,7 @@ export default function Payments() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      // Convertir fecha DD/MM/YYYY a YYYY-MM-DD
-      const [day, month, year] = form.due_date.split('/');
-      const isoDate = `${year}-${month}-${day}`;
-      
-      await createPayment({ ...form, client_id: Number(form.client_id), amount: Number(form.amount), month: Number(form.month), year: Number(form.year), due_date: isoDate });
+      await createPayment({ ...form, client_id: Number(form.client_id), amount: Number(form.amount), month: Number(form.month), year: Number(form.year), due_date: form.due_date });
       toast.success('Pago creado'); setModal(false); load();
     } catch (e) { toast.error(e.response?.data?.detail || 'Error'); } finally { setSaving(false); }
   };
