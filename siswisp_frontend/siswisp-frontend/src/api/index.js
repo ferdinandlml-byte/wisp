@@ -35,6 +35,15 @@ export const deleteClient = (id) => api.delete(`/api/clients/${id}`);
 export const suspendClient = (id) => api.post(`/api/clients/${id}/suspend`);
 export const reactivateClient = (id) => api.post(`/api/clients/${id}/reactivate`);
 export const pingClient = (id) => api.get(`/api/clients/${id}/ping`);
+export const exportClientsCSV = () => api.get('/api/clients/export/csv', { responseType: 'blob' });
+export const exportClientsPDF = () => api.get('/api/clients/export/pdf', { responseType: 'blob' });
+export const importClientsCSV = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/api/clients/import/csv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
 
 export const getPlans = () => api.get('/api/plans/');
 export const createPlan = (data) => api.post('/api/plans/', data);

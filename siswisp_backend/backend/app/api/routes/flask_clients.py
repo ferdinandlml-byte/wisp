@@ -1,11 +1,20 @@
 """
 Rutas para gestión de clientes (Flask).
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from functools import wraps
 from app.core.database import SessionLocal
 from app.core.security import get_current_user
-from app.models import Client, ClientStatus
+from app.models import Client, ClientStatus, Plan
+import csv
+import io
+import os
+from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/api/clients')
 
@@ -67,11 +76,18 @@ def serialize_client(client):
 @clients_bp.route("/", methods=["GET"])
 @token_required
 def list_clients():
-    """Listar todos los clientes con filtros opcionales."""
+    """Listar todos los clientes con filtros opcionales y paginación."""
     status = request.args.get("status")
     search = request.args.get("search")
-    skip = int(request.args.get("skip", 0))
-    limit = int(request.args.get("limit", 100))
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 10))
+    
+    if page < 1:
+        page = 1
+    if per_page < 1 or per_page > 100:
+        per_page = 10
+    
+    skip = (page - 1) * per_page
     
     db = get_db()
     q = db.query(Client)
@@ -85,8 +101,21 @@ def list_clients():
     if search:
         q = q.filter(Client.name.ilike(f"%{search}%"))
     
-    clients = q.offset(skip).limit(limit).all()
-    return jsonify([serialize_client(c) for c in clients]), 200
+    total = q.count()
+    clients = q.offset(skip).limit(per_page).all()
+    total_pages = (total + per_page - 1) // per_page
+    
+    return jsonify({
+        "data": [serialize_client(c) for c in clients],
+        "pagination": {
+            "current_page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
+    }), 200
 
 
 @clients_bp.route("/", methods=["POST"])
@@ -220,7 +249,6 @@ def ping_client(client_id):
     
     # Simular ping (en producción, usar actual ping/ICMP)
     # Por ahora retornamos online si tiene IP
-    import os
     try:
         # Intentar hacer ping real
         response = os.system(f"ping -c 1 {client.ip_address}" if os.name != 'nt' else f"ping -n 1 {client.ip_address}")
@@ -230,3 +258,198 @@ def ping_client(client_id):
         online = True
     
     return jsonify({"online": online, "ip": client.ip_address}), 200
+
+
+@clients_bp.route("/export/csv", methods=["GET"])
+@token_required
+def export_clients_csv():
+    """Exportar lista de clientes a CSV."""
+    db = get_db()
+    clients = db.query(Client).all()
+    
+    # Crear CSV en memoria
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Headers
+    writer.writerow(["ID", "Nombre", "Email", "Teléfono", "IP", "Plan", "Estado", "Día de Cobro", "Creado"])
+    
+    # Data
+    for client in clients:
+        writer.writerow([
+            client.id,
+            client.name,
+            client.email,
+            client.phone,
+            client.ip_address,
+            client.plan.name if client.plan else "N/A",
+            client.status.value if client.status else "ACTIVE",
+            client.billing_day,
+            client.created_at.strftime("%Y-%m-%d") if client.created_at else ""
+        ])
+    
+    # Convertir a bytes
+    output.seek(0)
+    stream = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+    stream.seek(0)
+    
+    return send_file(
+        stream,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"clientes_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+
+
+@clients_bp.route("/export/pdf", methods=["GET"])
+@token_required
+def export_clients_pdf():
+    """Exportar lista de clientes a PDF (reporte)."""
+    db = get_db()
+    clients = db.query(Client).all()
+    
+    # Crear PDF en memoria
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor('#1a3a52'),
+        spaceAfter=20,
+        alignment=1
+    )
+    
+    # Contenido
+    story = []
+    
+    # Título
+    story.append(Paragraph("REPORTE DE CLIENTES - SISWISP", title_style))
+    story.append(Paragraph(f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles['Normal']))
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Tabla de datos
+    data = [["ID", "Nombre", "Email", "Teléfono", "Plan", "Estado", "Día Cobro"]]
+    
+    for client in clients:
+        data.append([
+            str(client.id),
+            client.name[:20],
+            client.email[:20] if client.email else "-",
+            client.phone[:15] if client.phone else "-",
+            client.plan.name if client.plan else "N/A",
+            client.status.value if client.status else "ACTIVE",
+            str(client.billing_day)
+        ])
+    
+    # Crear tabla con estilos
+    table = Table(data, colWidths=[0.6*inch, 1.2*inch, 1.2*inch, 1*inch, 1.2*inch, 1*inch, 0.8*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a3a52')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')])
+    ]))
+    
+    story.append(table)
+    story.append(Spacer(1, 0.2*inch))
+    story.append(Paragraph(f"Total de clientes: <b>{len(clients)}</b>", styles['Normal']))
+    
+    # Generar PDF
+    doc.build(story)
+    pdf_buffer.seek(0)
+    
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"clientes_reporte_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
+
+
+@clients_bp.route("/import/csv", methods=["POST"])
+@token_required
+def import_clients_csv():
+    """Importar clientes desde archivo CSV."""
+    # Verificar archivo
+    if 'file' not in request.files:
+        return jsonify({"detail": "No se envió archivo"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"detail": "Archivo vacío"}), 400
+    
+    if not file.filename.endswith('.csv'):
+        return jsonify({"detail": "Solo se aceptan archivos CSV"}), 400
+    
+    try:
+        # Leer CSV
+        stream = io.StringIO(file.read().decode('utf-8'))
+        reader = csv.DictReader(stream)
+        
+        db = get_db()
+        imported = 0
+        errors = []
+        
+        for row_num, row in enumerate(reader, start=2):  # Empezar en 2 (omitir header)
+            try:
+                # Validar campos requeridos
+                name = row.get('Nombre', '').strip()
+                plan_id_str = row.get('Plan ID', '').strip()
+                
+                if not name:
+                    errors.append(f"Fila {row_num}: Falta nombre")
+                    continue
+                
+                if not plan_id_str:
+                    errors.append(f"Fila {row_num}: Falta Plan ID")
+                    continue
+                
+                try:
+                    plan_id = int(plan_id_str)
+                except ValueError:
+                    errors.append(f"Fila {row_num}: Plan ID inválido")
+                    continue
+                
+                # Verificar que el plan existe
+                plan = db.query(Plan).filter(Plan.id == plan_id).first()
+                if not plan:
+                    errors.append(f"Fila {row_num}: Plan con ID {plan_id} no existe")
+                    continue
+                
+                # Crear cliente
+                client = Client(
+                    name=name,
+                    email=row.get('Email', '').strip(),
+                    phone=row.get('Teléfono', '').strip(),
+                    ip_address=row.get('IP', '').strip(),
+                    plan_id=plan_id,
+                    billing_day=int(row.get('Día Cobro', 1)),
+                    status=ClientStatus.ACTIVE,
+                )
+                
+                db.add(client)
+                imported += 1
+                
+            except Exception as e:
+                errors.append(f"Fila {row_num}: {str(e)}")
+        
+        db.commit()
+        
+        return jsonify({
+            "imported": imported,
+            "errors": errors,
+            "success": imported > 0
+        }), 200 if imported > 0 else 400
+        
+    except Exception as e:
+        return jsonify({"detail": f"Error al procesar CSV: {str(e)}"}), 400

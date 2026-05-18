@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { getClients, createClient, updateClient, deleteClient, suspendClient, reactivateClient, pingClient, getPlans } from '../api';
+import { useEffect, useState, useRef } from 'react';
+import { getClients, createClient, updateClient, deleteClient, suspendClient, reactivateClient, pingClient, getPlans, exportClientsCSV, exportClientsPDF, importClientsCSV } from '../api';
 import { PageHeader, Button, Table, TR, TD, StatusTag, Modal, Input, Select, Card } from '../components/UI';
 import toast from 'react-hot-toast';
 
@@ -16,17 +16,28 @@ export default function Clients() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [pings, setPings] = useState({});
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1, per_page: 10, has_next: false, has_prev: false });
+  const fileInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
 
-  const load = () => {
+  const load = (pageNum = 1) => {
     setLoading(true);
-    const params = {};
+    const params = { page: pageNum, per_page: 10 };
     if (search) params.search = search;
     if (statusFilter) params.status = statusFilter;
-    getClients(params).then(r => setClients(r.data)).finally(() => setLoading(false));
+    getClients(params)
+      .then(r => {
+        setClients(r.data.data || []);
+        setPagination(r.data.pagination || {});
+        setPage(pageNum);
+      })
+      .catch(() => setClients([]))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); getPlans().then(r => setPlans(r.data)).catch(() => {}); }, []);
-  useEffect(() => { const t = setTimeout(load, 400); return () => clearTimeout(t); }, [search, statusFilter]);
+  useEffect(() => { const t = setTimeout(() => load(1), 400); return () => clearTimeout(t); }, [search, statusFilter]);
 
   const openCreate = () => { setForm(EMPTY_FORM); setModal('create'); };
   const openEdit = (c) => { setSelected(c); setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', ip_address: c.ip_address || '', billing_day: c.billing_day, plan_id: c.plan.id, notes: c.notes || '' }); setModal('edit'); };
@@ -58,7 +69,7 @@ export default function Clients() {
         await updateClient(selected.id, { ...form, plan_id: Number(form.plan_id), billing_day: Number(form.billing_day) });
         toast.success('Cliente actualizado');
       }
-      setModal(null); load();
+      setModal(null); load(1);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Error al guardar');
     } finally { setSaving(false); }
@@ -82,6 +93,59 @@ export default function Clients() {
     } catch { setPings(p => ({ ...p, [c.id]: 'offline' })); }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const response = await exportClientsCSV();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `clientes_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success('Archivo CSV descargado');
+    } catch (e) {
+      toast.error('Error al descargar CSV');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const response = await exportClientsPDF();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `clientes_reporte_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success('Reporte PDF descargado');
+    } catch (e) {
+      toast.error('Error al descargar PDF');
+    }
+  };
+
+  const handleImportCSV = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    setImporting(true);
+    try {
+      const response = await importClientsCSV(file);
+      const { imported, errors } = response.data;
+      toast.success(`✅ ${imported} clientes importados`);
+      if (errors.length > 0) {
+        toast.error(`⚠️ ${errors.length} errores: ${errors.slice(0, 2).join(', ')}`);
+      }
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Error al importar CSV');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
 
   const pingColor = { online: 'var(--green)', offline: 'var(--red)', checking: 'var(--amber)' };
@@ -90,8 +154,25 @@ export default function Clients() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Clientes"
-        subtitle={`${clients.length} registros`}
-        action={<Button onClick={openCreate}>+ Nuevo cliente</Button>}
+        subtitle={`${pagination.total} registros`}
+        action={
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button onClick={openCreate}>+ Nuevo cliente</Button>
+            <Button variant="secondary" onClick={handleExportCSV}>📊 CSV</Button>
+            <Button variant="secondary" onClick={handleExportPDF}>📄 PDF</Button>
+            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+              {importing ? '⏳ Importando...' : '📁 Importar CSV'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={handleImportCSV}
+              disabled={importing}
+            />
+          </div>
+        }
       />
 
       {/* Filters */}
@@ -158,6 +239,29 @@ export default function Clients() {
           </Table>
         )}
       </Card>
+
+      {/* Pagination */}
+      {pagination.total_pages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 20 }}>
+          <Button 
+            variant="ghost" 
+            disabled={!pagination.has_prev} 
+            onClick={() => load(page - 1)}
+          >
+            ← Anterior
+          </Button>
+          <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+            Página {pagination.current_page} de {pagination.total_pages}
+          </span>
+          <Button 
+            variant="ghost" 
+            disabled={!pagination.has_next} 
+            onClick={() => load(page + 1)}
+          >
+            Siguiente →
+          </Button>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       <Modal open={modal === 'create' || modal === 'edit'} onClose={() => setModal(null)}
