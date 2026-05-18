@@ -2,7 +2,9 @@
 Rutas para gestión de planes de servicio (Flask).
 """
 from flask import Blueprint, request, jsonify
+from functools import wraps
 from app.core.database import SessionLocal
+from app.core.security import get_current_user
 from app.models import Plan
 
 plans_bp = Blueprint('plans', __name__, url_prefix='/api/plans')
@@ -16,7 +18,32 @@ def get_db():
         db.close()
 
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(" ")[1]
+            except IndexError:
+                return jsonify({"detail": "Token inválido"}), 401
+        
+        if not token:
+            return jsonify({"detail": "Token faltante"}), 401
+        
+        try:
+            current_user = get_current_user(token)
+            request.current_user = current_user
+        except Exception as e:
+            return jsonify({"detail": str(e)}), 401
+        
+        return f(*args, **kwargs)
+    return decorated
+
+
 @plans_bp.route("/", methods=["POST"])
+@token_required
 def create_plan():
     """Crear un nuevo plan de servicio."""
     data = request.get_json()
@@ -49,10 +76,11 @@ def create_plan():
 
 
 @plans_bp.route("/", methods=["GET"])
+@token_required
 def list_plans():
     """Listar todos los planes de servicio."""
     db = get_db()
-    plans = db.query(Plan).all()
+    plans = db.query(Plan).filter(Plan.is_active == True).all()
     
     return jsonify([{
         "id": p.id,
@@ -66,6 +94,7 @@ def list_plans():
 
 
 @plans_bp.route("/<int:plan_id>", methods=["GET"])
+@token_required
 def get_plan(plan_id):
     """Obtener un plan específico."""
     db = get_db()
@@ -83,20 +112,6 @@ def get_plan(plan_id):
         "description": plan.description,
         "is_active": plan.is_active,
     }), 200
-
-
-@plans_bp.route("/<int:plan_id>", methods=["PUT"])
-def update_plan(plan_id):
-    """Actualizar un plan de servicio."""
-    data = request.get_json()
-    if not data:
-        return jsonify({"detail": "Datos requeridos"}), 400
-    
-    db = get_db()
-    plan = db.query(Plan).filter(Plan.id == plan_id).first()
-    
-    if not plan:
-        return jsonify({"detail": "Plan no encontrado"}), 404
     
     plan.name = data.get("name", plan.name)
     plan.speed_down = data.get("speed_down", plan.speed_down)

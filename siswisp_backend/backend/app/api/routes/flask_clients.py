@@ -51,9 +51,16 @@ def serialize_client(client):
         "phone": client.phone,
         "ip_address": client.ip_address,
         "status": client.status.value if client.status else "ACTIVE",
-        "plan_id": client.plan_id,
+        "plan": {
+            "id": client.plan.id,
+            "name": client.plan.name,
+            "speed_down": client.plan.speed_down,
+            "speed_up": client.plan.speed_up,
+            "price": client.plan.price,
+        } if client.plan else None,
         "billing_day": client.billing_day,
         "created_at": client.created_at.isoformat() if client.created_at else None,
+        "updated_at": client.updated_at.isoformat() if hasattr(client, 'updated_at') and client.updated_at else None,
     }
 
 
@@ -88,16 +95,16 @@ def create_client():
     """Crear un nuevo cliente."""
     data = request.get_json()
     
-    required = ["name", "email", "phone", "ip_address", "plan_id"]
-    if not data or not all(k in data for k in required):
-        return jsonify({"detail": f"Campos requeridos: {', '.join(required)}"}), 400
+    # Validar campos obligatorios
+    if not data or not data.get("name") or not data.get("plan_id"):
+        return jsonify({"detail": "Campos requeridos: name, plan_id"}), 400
     
     db = get_db()
     client = Client(
         name=data.get("name"),
-        email=data.get("email"),
-        phone=data.get("phone"),
-        ip_address=data.get("ip_address"),
+        email=data.get("email", ""),
+        phone=data.get("phone", ""),
+        ip_address=data.get("ip_address", ""),
         plan_id=data.get("plan_id"),
         billing_day=data.get("billing_day", 1),
         status=ClientStatus.ACTIVE,
@@ -162,3 +169,64 @@ def delete_client(client_id):
     db.commit()
     
     return jsonify({"ok": True}), 200
+
+
+@clients_bp.route("/<int:client_id>/suspend", methods=["POST"])
+@token_required
+def suspend_client(client_id):
+    """Suspender servicio de un cliente."""
+    db = get_db()
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        return jsonify({"detail": "Cliente no encontrado"}), 404
+    
+    client.status = ClientStatus.SUSPENDED
+    db.commit()
+    db.refresh(client)
+    
+    return jsonify(serialize_client(client)), 200
+
+
+@clients_bp.route("/<int:client_id>/reactivate", methods=["POST"])
+@token_required
+def reactivate_client(client_id):
+    """Reactivar servicio de un cliente."""
+    db = get_db()
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        return jsonify({"detail": "Cliente no encontrado"}), 404
+    
+    client.status = ClientStatus.ACTIVE
+    db.commit()
+    db.refresh(client)
+    
+    return jsonify(serialize_client(client)), 200
+
+
+@clients_bp.route("/<int:client_id>/ping", methods=["GET"])
+@token_required
+def ping_client(client_id):
+    """Verificar conectividad de un cliente (ping)."""
+    db = get_db()
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        return jsonify({"detail": "Cliente no encontrado"}), 404
+    
+    if not client.ip_address:
+        return jsonify({"online": False, "message": "Sin IP configurada"}), 200
+    
+    # Simular ping (en producción, usar actual ping/ICMP)
+    # Por ahora retornamos online si tiene IP
+    import os
+    try:
+        # Intentar hacer ping real
+        response = os.system(f"ping -c 1 {client.ip_address}" if os.name != 'nt' else f"ping -n 1 {client.ip_address}")
+        online = response == 0
+    except:
+        # Fallback: asumir online si tiene IP
+        online = True
+    
+    return jsonify({"online": online, "ip": client.ip_address}), 200
