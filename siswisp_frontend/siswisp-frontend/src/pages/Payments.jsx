@@ -17,10 +17,16 @@ export default function Payments() {
   const load = () => {
     setLoading(true);
     const params = statusFilter ? { status: statusFilter } : {};
-    getPayments(params).then(r => setPayments(r.data)).finally(() => setLoading(false));
+    getPayments(params).then(r => setPayments(Array.isArray(r.data) ? r.data : [])).catch(e => {
+      console.error('Error loading payments:', e);
+      setPayments([]);
+    }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); getClients().then(r => setClients(r.data)).catch(() => {}); }, []);
+  useEffect(() => { 
+    load(); 
+    getClients().then(r => setClients(Array.isArray(r.data) ? r.data : r.data?.data || [])).catch(() => setClients([])); 
+  }, []);
   useEffect(() => { load(); }, [statusFilter]);
 
   const handleMarkPaid = async (id) => {
@@ -36,8 +42,8 @@ export default function Payments() {
   };
 
   const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
-
-  const totalPending = payments.filter(p => p.status === 'pendiente' || p.status === 'vencido').reduce((s, p) => s + p.amount, 0);
+  const getClientName = (clientId) => clients.find(c => c.id === clientId)?.name || `Cliente #${clientId}`;
+  const totalPending = payments.filter(p => p.status === 'PENDING' || p.status === 'OVERDUE').reduce((s, p) => s + p.amount, 0);
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -50,9 +56,9 @@ export default function Payments() {
       {/* Summary bar */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Pendientes', count: payments.filter(p => p.status === 'pendiente').length, color: 'var(--amber)', f: 'pendiente' },
-          { label: 'Vencidos',   count: payments.filter(p => p.status === 'vencido').length,  color: 'var(--red)',   f: 'vencido' },
-          { label: 'Pagados',    count: payments.filter(p => p.status === 'pagado').length,    color: 'var(--green)', f: 'pagado' },
+          { label: 'Pendientes', count: payments.filter(p => p.status === 'PENDING').length, color: 'var(--amber)', f: 'PENDING' },
+          { label: 'Vencidos',   count: payments.filter(p => p.status === 'OVERDUE').length,  color: 'var(--red)',   f: 'OVERDUE' },
+          { label: 'Pagados',    count: payments.filter(p => p.status === 'PAID').length,    color: 'var(--green)', f: 'PAID' },
         ].map(s => (
           <button key={s.label}
             onClick={() => setStatusFilter(statusFilter === s.f ? '' : s.f)}
@@ -84,22 +90,22 @@ export default function Payments() {
             ) : payments.map(p => (
               <TR key={p.id}>
                 <TD mono>#{p.id}</TD>
-                <TD>#{p.client_id}</TD>
+                <TD>{getClientName(p.client_id)}</TD>
                 <TD mono>${p.amount.toFixed(2)}</TD>
                 <TD mono>{p.month}/{p.year}</TD>
                 <TD mono>
-                  <span style={{ color: p.status === 'vencido' ? 'var(--red)' : 'inherit' }}>
+                  <span style={{ color: p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
                     {format(new Date(p.due_date), 'dd/MM/yyyy')}
                   </span>
                 </TD>
-                <TD><StatusTag status={p.status} /></TD>
+                <TD><StatusTag status={p.status === 'PAID' ? 'pagado' : p.status === 'OVERDUE' ? 'vencido' : 'pendiente'} /></TD>
                 <TD>
-                  {(p.status === 'pendiente' || p.status === 'vencido') && (
+                  {(p.status === 'PENDING' || p.status === 'OVERDUE') && (
                     <Button size="sm" variant="success" onClick={() => handleMarkPaid(p.id)}>
                       ✓ Marcar pagado
                     </Button>
                   )}
-                  {p.status === 'pagado' && (
+                  {p.status === 'PAID' && (
                     <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
                       {p.paid_at ? format(new Date(p.paid_at), 'dd/MM/yy HH:mm') : '—'}
                     </span>
