@@ -11,6 +11,6 @@ COPY backend/ .
 
 EXPOSE 10000
 
-# Run application using Python entry point script
-CMD ["python", "run.py"]
+# Use ENTRYPOINT for more reliable startup
+ENTRYPOINT ["python3", "-u", "run.py"]
 
