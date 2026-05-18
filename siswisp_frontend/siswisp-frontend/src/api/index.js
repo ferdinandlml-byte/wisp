@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Production Railway backend
-const API_URL = 'https://wisp-production-9ac7.up.railway.app';
+// Get API URL from runtime config (loaded in index.html)
+const API_URL = window.API_CONFIG?.API_URL || 'https://wisp-production-9ac7.up.railway.app';
+console.log('[API Client] Using API_URL:', API_URL);
 
 const api = axios.create({ baseURL: API_URL });
 
