@@ -1,0 +1,14 @@
+[build]
+builder = "heroku.buildpacks"
+buildpacks = [
+  { engine = "python:3.9" }
+]
+
+[env]
+FLASK_ENV = "production"
+PYTHONUNBUFFERED = "true"
+
+[[services]]
+name = "siswisp-backend"
+cmd = "gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 wsgi:app"
+rootDir = "siswisp_backend/backend"
