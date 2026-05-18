@@ -11,6 +11,6 @@ COPY backend/ .
 
 EXPOSE 10000
 
-# Use gunicorn for production WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "wsgi:app"]
+# Run Flask with explicit Python path and unbuffered output
+CMD ["/usr/local/bin/python3", "-u", "run.py"]
 
