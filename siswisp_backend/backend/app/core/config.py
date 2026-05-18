@@ -1,5 +1,6 @@
 from pydantic import BaseSettings
 from functools import lru_cache
+import os
 
 
 class Settings(BaseSettings):
@@ -8,13 +9,21 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Base de datos
-    DATABASE_URL: str
+    # PostgreSQL en producción (Railway), SQLite localmente
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/siswisp"  # Para desarrollo local con Docker Compose
+    )
+    
+    # Si no hay DATABASE_URL y no estamos en producción, usar SQLite
+    if not os.getenv("DATABASE_URL") and not os.getenv("RAILWAY_ENVIRONMENT"):
+        DATABASE_URL = "sqlite:///./test.db"
 
     # Redis / Celery
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT
-    SECRET_KEY: str
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 horas
 

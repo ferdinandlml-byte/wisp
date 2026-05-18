@@ -1,24 +1,46 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: siswisp_postgres
+    environment:
+      POSTGRES_DB: siswisp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
       dockerfile: siswisp_backend/Dockerfile
+    container_name: siswisp_backend
     ports:
       - "10000:10000"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=sqlite:///./test.db
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/siswisp
       - SECRET_KEY=dev-secret-key-change-in-production
       - PORT=10000
     volumes:
       - ./siswisp_backend/backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: python3 -u run.py
 
   frontend:
     build:
       context: ./siswisp_frontend/siswisp-frontend
+    container_name: siswisp_frontend
     ports:
       - "3000:3000"
     environment:
@@ -27,3 +49,6 @@ services:
       - backend
     volumes:
       - ./siswisp_frontend/siswisp-frontend/src:/app/src
+
+volumes:
+  postgres_data:

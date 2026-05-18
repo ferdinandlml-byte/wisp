@@ -62,20 +62,41 @@ Guía paso a paso para poner tu aplicación en línea de forma **GRATIS** en 15 
    - Detecta el Dockerfile
    - Comienza a hacer build
 
-4. **Agregar variables de entorno**
+4. **⭐ AGREGAR PostgreSQL (para datos persistentes)**
+   - En tu proyecto Railway, click "Create" (+ Add Plugin)
+   - Selecciona "PostgreSQL"
+   - Espera 2-3 minutos a que se despliegue
+   - Railway automáticamente crea la variable `DATABASE_URL`
+
+5. **Agregar otras variables de entorno**
    - En "Variables":
      ```
-     DATABASE_URL = sqlite:///./test.db
      SECRET_KEY = tu-clave-secreta-muy-larga-aqui
      FLASK_ENV = production
      PORT = 10000
      ```
+   - ❌ NO edites `DATABASE_URL` - Railway la gestiona automáticamente
 
-5. **Deploy**
-   - Railway automáticamente despliega
+6. **Deploy**
+   - Railway automáticamente despliega con PostgreSQL
    - Espera 3-5 minutos
+   - Verás en logs: "SISWISP Tablas listas"
 
 **Backend URL**: Railway te la asigna (ej: `siswisp-api.railway.app`)
+
+---
+
+### ⚡ ¿Por qué PostgreSQL?
+
+| Aspecto | SQLite | PostgreSQL |
+|--------|--------|-----------|
+| **Datos persisten** | ❌ Se pierden en deploy | ✅ Siempre disponibles |
+| **Múltiples conexiones** | ⚠️ Limitado | ✅ Ilimitado |
+| **Escalabilidad** | ❌ Disco local | ✅ Servidor externo |
+| **Precio en Railway** | Gratis (pero temporal) | ✅ **Gratis (5GB)** |
+| **Performance** | Lento con muchos datos | ✅ Rápido |
+
+**Con PostgreSQL, tus clientes NUNCA se pierden** ✅
 
 ---
 
