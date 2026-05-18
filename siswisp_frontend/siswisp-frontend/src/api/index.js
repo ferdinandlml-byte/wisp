@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+// Production Railway backend
 const API_URL = 'https://wisp-production-9ac7.up.railway.app';
 
 const api = axios.create({ baseURL: API_URL });
