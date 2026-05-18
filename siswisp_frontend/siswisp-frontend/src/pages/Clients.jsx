@@ -33,6 +33,22 @@ export default function Clients() {
   const openDetail = (c) => { setSelected(c); setModal('detail'); };
 
   const handleSave = async () => {
+    // Validación: Nombre obligatorio
+    if (!form.name || form.name.trim() === '') {
+      toast.error('El nombre es obligatorio');
+      return;
+    }
+    // Validación: Plan obligatorio
+    if (!form.plan_id) {
+      toast.error('Debes seleccionar un plan');
+      return;
+    }
+    // Validación: Día de cobro válido
+    if (form.billing_day < 1 || form.billing_day > 28) {
+      toast.error('Día de cobro debe estar entre 1 y 28');
+      return;
+    }
+
     setSaving(true);
     try {
       if (modal === 'create') {

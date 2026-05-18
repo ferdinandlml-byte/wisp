@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from app.models import ClientStatus, PaymentStatus
@@ -63,14 +63,14 @@ class PlanOut(BaseModel):
 # CLIENTE
 # ──────────────────────────────────────────────
 class ClientCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)  # Requerido, no vacío
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
     ip_address: Optional[str] = None
     mac_address: Optional[str] = None
-    billing_day: int = 1
-    plan_id: int
+    billing_day: int = Field(default=1, ge=1, le=28)  # Entre 1 y 28
+    plan_id: int = Field(..., gt=0)  # Requerido, mayor que 0
     notes: Optional[str] = None
 
 class ClientUpdate(BaseModel):
