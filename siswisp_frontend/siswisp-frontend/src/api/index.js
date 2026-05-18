@@ -40,9 +40,7 @@ export const exportClientsPDF = () => api.get('/api/clients/export/pdf', { respo
 export const importClientsCSV = (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  return api.post('/api/clients/import/csv', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
+  return api.post('/api/clients/import/csv', formData);
 };
 
 export const getPlans = () => api.get('/api/plans/');
