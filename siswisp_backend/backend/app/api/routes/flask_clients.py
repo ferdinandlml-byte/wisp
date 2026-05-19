@@ -403,8 +403,20 @@ def import_clients_csv():
         return jsonify({"detail": "Solo se aceptan archivos CSV"}), 400
     
     try:
-        # Leer CSV
-        stream = io.StringIO(file.read().decode('utf-8'))
+        # Leer archivo con múltiples codificaciones posibles
+        file_content = file.read()
+        
+        # Intentar diferentes codificaciones
+        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                text = file_content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            return jsonify({"detail": "No se pudo decodificar el archivo CSV. Intenta guardarlo como UTF-8 en Excel"}), 400
+        
+        stream = io.StringIO(text)
         reader = csv.DictReader(stream)
         
         db = get_db()
