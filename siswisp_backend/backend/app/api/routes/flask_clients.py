@@ -187,17 +187,28 @@ def update_client(client_id):
 @clients_bp.route("/<int:client_id>", methods=["DELETE"])
 @token_required
 def delete_client(client_id):
-    """Eliminar un cliente."""
+    """Eliminar un cliente y sus pagos asociados."""
     db = get_db()
     client = db.query(Client).filter(Client.id == client_id).first()
     
     if not client:
         return jsonify({"detail": "Cliente no encontrado"}), 404
     
-    db.delete(client)
-    db.commit()
-    
-    return jsonify({"ok": True}), 200
+    try:
+        # Importar Payment aquí para evitar circular imports
+        from app.models import Payment
+        
+        # Primero eliminar todos los pagos asociados
+        db.query(Payment).filter(Payment.client_id == client_id).delete()
+        
+        # Luego eliminar el cliente
+        db.delete(client)
+        db.commit()
+        
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"detail": f"Error al eliminar cliente: {str(e)}"}), 400
 
 
 @clients_bp.route("/<int:client_id>/suspend", methods=["POST"])
