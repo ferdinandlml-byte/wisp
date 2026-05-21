@@ -99,3 +99,20 @@ class Payment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship("Client", back_populates="payments")
+
+
+# ──────────────────────────────────────────────
+# DISPOSITIVO / SECTORIAL
+# ──────────────────────────────────────────────
+class Device(Base):
+    __tablename__ = "devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)           # Ej: "Sectorial 1"
+    ip_address = Column(String(20), nullable=False, unique=True)
+    username = Column(String(100), nullable=False)
+    password = Column(String(255), nullable=False)       # Encriptada en producción
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

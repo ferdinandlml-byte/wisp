@@ -5,6 +5,7 @@ from app.api.routes.flask_auth import auth_bp
 from app.api.routes.flask_clients import clients_bp
 from app.api.routes.flask_payments import payments_bp, dashboard_bp
 from app.api.routes.flask_plans import plans_bp
+from app.api.routes.flask_devices import devices_bp
 import os
 
 # Crear tablas en BD
@@ -28,6 +29,7 @@ app.register_blueprint(clients_bp)
 app.register_blueprint(payments_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(plans_bp)
+app.register_blueprint(devices_bp)
 
 
 @app.route("/")

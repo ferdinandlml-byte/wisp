@@ -52,4 +52,10 @@ export const createPayment = (data) => api.post('/api/payments/', data);
 
 export const getDashboardStats = () => api.get('/api/dashboard/stats');
 
+export const getDevices = (params) => api.get('/api/devices/', { params });
+export const getDevice = (id) => api.get(`/api/devices/${id}`);
+export const createDevice = (data) => api.post('/api/devices/', data);
+export const updateDevice = (id, data) => api.put(`/api/devices/${id}`, data);
+export const deleteDevice = (id) => api.delete(`/api/devices/${id}`);
+
 export default api;

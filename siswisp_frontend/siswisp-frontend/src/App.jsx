@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
+import Devices from './pages/Devices';
 import Payments from './pages/Payments';
 import Plans from './pages/Plans';
 import Network from './pages/Network';
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<PrivateLayout><Dashboard /></PrivateLayout>} />
           <Route path="/clients" element={<PrivateLayout><Clients /></PrivateLayout>} />
+          <Route path="/devices" element={<PrivateLayout><Devices /></PrivateLayout>} />
           <Route path="/payments" element={<PrivateLayout><Payments /></PrivateLayout>} />
           <Route path="/plans" element={<PrivateLayout><Plans /></PrivateLayout>} />
           <Route path="/network" element={<PrivateLayout><Network /></PrivateLayout>} />
