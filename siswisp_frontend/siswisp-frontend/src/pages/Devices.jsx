@@ -170,11 +170,11 @@ export default function Devices() {
 
       {loading ? (
         <div className="text-center py-8 text-gray-500">Cargando...</div>
-      ) : safeDevices.length === 0 ? (
+      ) : (safeDevices && safeDevices.length === 0) ? (
         <Card className="text-center py-8 text-gray-500">
           No hay dispositivos configurados
         </Card>
-      ) : (
+      ) : (safeDevices && safeDevices.length > 0) ? (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <Table>
             <thead className="bg-gray-50">
