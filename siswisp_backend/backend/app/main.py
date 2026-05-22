@@ -6,10 +6,24 @@ from app.api.routes.flask_clients import clients_bp
 from app.api.routes.flask_payments import payments_bp, dashboard_bp
 from app.api.routes.flask_plans import plans_bp
 from app.api.routes.flask_devices import devices_bp
+from sqlalchemy import text
 import os
 
 # Crear tablas en BD
 Base.metadata.create_all(bind=engine)
+
+# Agregar columnas faltantes en payments (migración manual)
+try:
+    with engine.connect() as conn:
+        # Intentar agregar columnas end_month y end_year si no existen
+        conn.execute(text("""
+            ALTER TABLE payments 
+            ADD COLUMN IF NOT EXISTS end_month INTEGER DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS end_year INTEGER DEFAULT NULL
+        """))
+        conn.commit()
+except Exception as e:
+    print(f"[Warning] No se pudo actualizar tabla payments: {e}")
 
 app = Flask(__name__)
 

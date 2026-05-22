@@ -91,9 +91,9 @@ class Payment(Base):
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     amount = Column(Float, nullable=False)
     month = Column(Integer, nullable=False)              # Mes inicial (1-12)
-    end_month = Column(Integer, nullable=False)          # Mes final para pagos adelantados (1-12)
+    end_month = Column(Integer, nullable=True)           # Mes final para pagos adelantados (1-12)
     year = Column(Integer, nullable=False)               # Año del pago
-    end_year = Column(Integer, nullable=False)           # Año del mes final (para enero siguiente)
+    end_year = Column(Integer, nullable=True)            # Año del mes final (para enero siguiente)
     due_date = Column(DateTime(timezone=True), nullable=False)
     paid_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(SAEnum(PaymentStatus), default=PaymentStatus.PENDING)

@@ -47,13 +47,17 @@ def token_required(f):
 
 def serialize_payment(payment):
     """Serializar pago a diccionario."""
+    # Usar valores por defecto si end_month/end_year son NULL (registros antiguos)
+    end_month = payment.end_month if payment.end_month is not None else payment.month
+    end_year = payment.end_year if payment.end_year is not None else payment.year
+    
     # Calcular cantidad de meses cubiertos
-    if payment.end_month >= payment.month and payment.end_year == payment.year:
+    if end_month >= payment.month and end_year == payment.year:
         # Mismo año: simple resta
-        months_covered = payment.end_month - payment.month + 1
-    elif payment.end_year > payment.year:
+        months_covered = end_month - payment.month + 1
+    elif end_year > payment.year:
         # Cruza años: (12 - mes_inicio) + mes_fin + 1
-        months_covered = (12 - payment.month + 1) + payment.end_month
+        months_covered = (12 - payment.month + 1) + end_month
     else:
         months_covered = 1
     
@@ -62,11 +66,11 @@ def serialize_payment(payment):
         "client_id": payment.client_id,
         "amount": float(payment.amount),
         "month": payment.month,
-        "end_month": payment.end_month,
+        "end_month": end_month,
         "year": payment.year,
-        "end_year": payment.end_year,
+        "end_year": end_year,
         "months_covered": months_covered,
-        "period": f"{payment.month}/{payment.year} - {payment.end_month}/{payment.end_year}",
+        "period": f"{payment.month}/{payment.year} - {end_month}/{end_year}",
         "due_date": payment.due_date.isoformat() if payment.due_date else None,
         "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
         "status": payment.status.value if payment.status else "PENDING",
