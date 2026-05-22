@@ -189,6 +189,7 @@ export default function Devices() {
       {/* Modal */}
       {modal && (
         <Modal 
+          open={true}
           title={modal === 'create' ? 'Nuevo Dispositivo' : 'Editar Dispositivo'}
           onClose={() => setModal(null)}
         >
