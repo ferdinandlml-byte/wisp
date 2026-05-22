@@ -73,15 +73,17 @@ export function Input({ label, error, ...props }) {
 }
 
 // ── Select ───────────────────────────────────────────────────────────────────
-export function Select({ label, children, ...props }) {
+export function Select({ label, children, size = 8, ...props }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {label && <label style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</label>}
       <select
+        size={size}
         style={{
           background: 'var(--bg3)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius)', padding: '10px 14px', color: 'var(--text)',
           fontFamily: 'var(--font)', fontSize: 14, outline: 'none',
+          maxHeight: '250px', overflowY: 'auto'
         }}
         {...props}
       >
