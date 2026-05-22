@@ -95,7 +95,9 @@ export default function Payments() {
     const duration = Number(monthsDuration);
     const startY = Number(startYear);
     
-    let endMonth = start + duration - 1;
+    // Duration of N months means coverage extends N months forward
+    // Example: 1 month from May (5) = coverage through June (6) = 5 + 1 = 6
+    let endMonth = start + duration;
     let endYear = startY;
     
     while (endMonth > 12) {
