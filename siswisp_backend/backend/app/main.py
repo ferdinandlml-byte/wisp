@@ -27,15 +27,23 @@ except Exception as e:
 
 app = Flask(__name__)
 
-# Configurar CORS
-CORS(app, supports_credentials=True, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000", "http://localhost", "127.0.0.1", "*"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        "allow_headers": ["*"],
-        "max_age": 86400
-    }
-})
+# Configurar CORS - permitir Vercel frontend
+vercel_domains = [
+    "https://wisp-wheat.vercel.app",
+    "https://wisp-l98qi85cb-smi1.vercel.app",
+    "http://localhost:3000", 
+    "http://localhost",
+    "127.0.0.1"
+]
+
+CORS(app, 
+    supports_credentials=True, 
+    origins=vercel_domains,
+    allow_headers=["*"],
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    max_age=86400,
+    expose_headers=["Content-Disposition"]
+)
 
 # Registrar blueprints (rutas)
 app.register_blueprint(auth_bp)
