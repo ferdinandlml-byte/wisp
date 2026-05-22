@@ -19,7 +19,6 @@ export default function Payments() {
     end_month: new Date().getMonth() + 1,
     year: new Date().getFullYear(), 
     end_year: new Date().getFullYear(),
-    due_date: '', 
     status: 'PENDING',
     notes: '' 
   });
@@ -62,7 +61,6 @@ export default function Payments() {
       end_month: new Date().getMonth() + 1,
       year: new Date().getFullYear(), 
       end_year: new Date().getFullYear(),
-      due_date: '', 
       status: 'PENDING',
       notes: '' 
     });
@@ -79,7 +77,6 @@ export default function Payments() {
       end_month: payment.end_month,
       year: payment.year,
       end_year: payment.end_year,
-      due_date: payment.due_date?.split('T')[0] || '',
       status: payment.status,
       notes: payment.notes || ''
     });
@@ -96,7 +93,6 @@ export default function Payments() {
         end_month: Number(form.end_month),
         year: Number(form.year),
         end_year: Number(form.end_year),
-        due_date: form.due_date,
         status: form.status,
         notes: form.notes
       };
@@ -224,10 +220,11 @@ export default function Payments() {
             </div>
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
               📅 Cubre: <strong style={{ color: 'var(--accent)' }}>{form.month}/{form.year} → {form.end_month}/{form.end_year}</strong>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)', background: 'rgba(0,212,255,0.05)', padding: '8px 10px', borderRadius: 4 }}>
+                ⏰ Vencimiento calculado automáticamente según día de cobro
+              </div>
             </div>
           </div>
-          
-          <Input label="Fecha de vencimiento" value={form.due_date} onChange={f('due_date')} type="date" />
           
           <Select label="Estado del pago" value={form.status} onChange={f('status')}>
             <option value="PENDING">Pendiente</option>

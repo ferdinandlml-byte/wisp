@@ -7,7 +7,7 @@ from app.core.database import SessionLocal
 from app.core.security import get_current_user
 from app.models import Payment, PaymentStatus, Client, ClientStatus
 from sqlalchemy import func, extract
-from datetime import datetime
+from datetime import datetime, timedelta
 
 payments_bp = Blueprint('payments', __name__, url_prefix='/api/payments')
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
@@ -100,26 +100,71 @@ def list_payments():
     return jsonify([serialize_payment(p) for p in payments]), 200
 
 
+def calculate_due_date(client_id, end_month, end_year):
+    """Calcular fecha de vencimiento basada en día_cobro del cliente.
+    
+    Si el cliente paga hasta agosto (end_month=8), el vencimiento es 21 de septiembre
+    (un día antes del próximo día de cobro).
+    """
+    db = get_db()
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client or not client.billing_day:
+        # Sin cliente o sin día de cobro, no se puede calcular
+        return None
+    
+    billing_day = client.billing_day
+    
+    # Próximo mes después del período
+    next_month = end_month + 1
+    next_year = end_year
+    if next_month > 12:
+        next_month = 1
+        next_year += 1
+    
+    # Crear fecha del próximo día de cobro
+    try:
+        next_billing = datetime(next_year, next_month, billing_day)
+    except ValueError:
+        # Si el día no existe en ese mes (ej: 31 de febrero), usar último día del mes
+        if next_month == 2:
+            next_billing = datetime(next_year, 2, 28)
+        elif next_month in [4, 6, 9, 11]:
+            next_billing = datetime(next_year, next_month, 30)
+        else:
+            next_billing = datetime(next_year, next_month, 31)
+    
+    # Restar 1 día para obtener el vencimiento (día anterior al próximo cobro)
+    due_date = next_billing - timedelta(days=1)
+    
+    return due_date
+
+
 @payments_bp.route("/", methods=["POST"])
 @token_required
 def create_payment():
     """Crear un nuevo pago (puede cubrir múltiples meses)."""
     data = request.get_json()
     
-    required = ["client_id", "amount", "month", "year", "due_date"]
+    required = ["client_id", "amount", "month", "year"]
     if not data or not all(k in data for k in required):
         return jsonify({"detail": f"Campos requeridos: {', '.join(required)}"}), 400
     
-    try:
-        due_date_str = data.get("due_date")
-        # Intentar parsear como YYYY-MM-DD o ISO format
-        if 'T' in due_date_str:
-            due_date = datetime.fromisoformat(due_date_str.split('.')[0])  # Remover microseconds
-        else:
-            # Es formato YYYY-MM-DD
-            due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-    except (ValueError, TypeError, AttributeError):
-        return jsonify({"detail": f"due_date inválido: {data.get('due_date')}. Use formato YYYY-MM-DD"}), 400
+    # Si no viene due_date, intentar calcular automáticamente
+    if "due_date" in data and data.get("due_date"):
+        try:
+            due_date_str = data.get("due_date")
+            if 'T' in due_date_str:
+                due_date = datetime.fromisoformat(due_date_str.split('.')[0])
+            else:
+                due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+        except (ValueError, TypeError, AttributeError):
+            return jsonify({"detail": f"due_date inválido: {data.get('due_date')}. Use formato YYYY-MM-DD"}), 400
+    else:
+        # Calcular automáticamente
+        end_month = data.get("end_month", data.get("month"))
+        end_year = data.get("end_year", data.get("year"))
+        due_date = calculate_due_date(data.get("client_id"), end_month, end_year)
     
     # Si no viene end_month, asumir que es un mes único
     end_month = data.get("end_month", data.get("month"))
@@ -178,13 +223,22 @@ def update_payment(payment_id):
         if "end_year" in data:
             payment.end_year = data["end_year"]
         
+        # Si se cambió end_month o end_year, recalcular due_date automáticamente
+        if ("end_month" in data or "end_year" in data) and "due_date" not in data:
+            end_month = data.get("end_month", payment.end_month)
+            end_year = data.get("end_year", payment.end_year)
+            calculated_due = calculate_due_date(payment.client_id, end_month, end_year)
+            if calculated_due:
+                payment.due_date = calculated_due
+        
         if "due_date" in data:
             due_date_str = data["due_date"]
-            if 'T' in due_date_str:
-                due_date = datetime.fromisoformat(due_date_str.split('.')[0])
-            else:
-                due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-            payment.due_date = due_date
+            if due_date_str:  # Solo si no es vacío
+                if 'T' in due_date_str:
+                    due_date = datetime.fromisoformat(due_date_str.split('.')[0])
+                else:
+                    due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+                payment.due_date = due_date
         
         if "status" in data:
             try:
