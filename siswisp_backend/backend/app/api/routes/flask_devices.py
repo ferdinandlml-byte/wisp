@@ -31,7 +31,8 @@ def list_devices():
             (page - 1) * per_page
         ).limit(per_page).all()
         
-        return jsonify({
+        # SIEMPRE devolver estructura correcta
+        response = {
             "devices": [
                 {
                     "id": d.id,
@@ -50,10 +51,22 @@ def list_devices():
             "total": total,
             "has_next": page < total_pages,
             "has_prev": page > 1,
-        }), 200
+        }
+        print(f"[Devices API] Returning response: {response}")
+        return jsonify(response), 200
     
     except Exception as e:
-        return jsonify({"detail": str(e)}), 500
+        print(f"[Devices API] Error: {str(e)}")
+        # Devolver estructura aunque haya error
+        return jsonify({
+            "devices": [],
+            "current_page": 1,
+            "total_pages": 0,
+            "total": 0,
+            "has_next": False,
+            "has_prev": False,
+            "error": str(e)
+        }), 500
 
 
 # ──────────────────────────────────────────────
