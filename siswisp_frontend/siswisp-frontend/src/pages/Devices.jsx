@@ -3,178 +3,175 @@ import { getDevices, createDevice, updateDevice, deleteDevice } from '../api';
 import { PageHeader, Button, Table, TR, TD, Modal, Input, Card } from '../components/UI';
 import toast from 'react-hot-toast';
 
-// CACHE BUST: v5 - Force complete rebuild
-const EMPTY_FORM = { name: '', ip_address: '', username: '', password: '', description: '', is_active: true };
-const SAFE_PAGINATION = { total: 0, total_pages: 1, current_page: 1, has_next: false, has_prev: false };
-
 export default function Devices() {
+  // Estado principal - SIMPLE
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(SAFE_PAGINATION);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+  
+  // Modal y formulario - SIMPLE
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('create');
+  const [selectedId, setSelectedId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    ip_address: '',
+    username: '',
+    password: '',
+    description: '',
+    is_active: true,
+  });
 
-  const load = (pageNum = 1) => {
+  // Cargar dispositivos
+  const loadDevices = (pageNum = 1) => {
     setLoading(true);
-    console.log('[Devices] START: Loading page', pageNum);
-    
     getDevices({ page: pageNum, per_page: 10 })
-      .then(r => {
-        console.log('[Devices] SUCCESS: Got response');
-        
-        try {
-          // Triple-check response
-          if (!r || !r.data) {
-            console.error('[Devices] FAIL: No response data');
-            throw new Error('No data');
-          }
-          
-          const data = r.data;
-          const devicesArray = Array.isArray(data.devices) ? data.devices : [];
-          const pagination = {
-            total: typeof data.total === 'number' ? data.total : 0,
-            total_pages: typeof data.total_pages === 'number' ? data.total_pages : 1,
-            current_page: typeof data.current_page === 'number' ? data.current_page : pageNum,
-            has_next: data.has_next === true,
-            has_prev: data.has_prev === true
-          };
-          
-          console.log('[Devices] EXTRACTED:', {
-            devices_count: devicesArray.length,
-            pagination
-          });
-          
-          // Update state
-          setDevices(devicesArray);
-          setPagination(pagination);
+      .then(({ data }) => {
+        if (data && data.devices) {
+          setDevices(data.devices);
+          setTotal(data.total || 0);
+          setTotalPages(data.total_pages || 1);
+          setHasNext(data.has_next === true);
+          setHasPrev(data.has_prev === true);
           setPage(pageNum);
-        } catch (parseErr) {
-          console.error('[Devices] PARSE ERROR:', parseErr);
-          setDevices([]);
-          setPagination(SAFE_PAGINATION);
         }
-      })
-      .catch(err => {
-        console.error('[Devices] API ERROR:', err);
-        setDevices([]);
-        setPagination(SAFE_PAGINATION);
-      })
-      .finally(() => {
-        console.log('[Devices] DONE: Setting loading=false');
         setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Error:', err);
+        setDevices([]);
+        setLoading(false);
+        toast.error('Error al cargar dispositivos');
       });
   };
 
   useEffect(() => {
-    console.log('[Devices] MOUNT: useEffect running');
-    load();
+    loadDevices(1);
   }, []);
 
-  const openCreate = () => { 
-    setForm(EMPTY_FORM); 
-    setSelected(null);
-    setShowPassword(false);
-    setModal('create'); 
-  };
-
-  const openEdit = (d) => { 
-    setSelected(d);
-    setForm({ 
-      name: d?.name || '', 
-      ip_address: d?.ip_address || '', 
-      username: d?.username || '', 
-      password: d?.password || '',
-      description: d?.description || '', 
-      is_active: d?.is_active ?? true 
+  // Abrir modal crear
+  const openCreateModal = () => {
+    setForm({
+      name: '',
+      ip_address: '',
+      username: '',
+      password: '',
+      description: '',
+      is_active: true,
     });
+    setSelectedId(null);
+    setModalMode('create');
     setShowPassword(false);
-    setModal('edit'); 
+    setModalOpen(true);
   };
 
-  const handleSave = async () => {
+  // Abrir modal editar
+  const openEditModal = (device) => {
+    setForm(device);
+    setSelectedId(device.id);
+    setModalMode('edit');
+    setShowPassword(false);
+    setModalOpen(true);
+  };
+
+  // Cerrar modal
+  const closeModal = () => {
+    setModalOpen(false);
+  };
+
+  // Guardar dispositivo
+  const saveDevice = async () => {
     if (!form.name?.trim()) {
-      toast.error('El nombre es obligatorio');
+      toast.error('Nombre requerido');
       return;
     }
     if (!form.ip_address?.trim()) {
-      toast.error('La IP es obligatoria');
+      toast.error('IP requerida');
       return;
     }
     if (!form.username?.trim()) {
-      toast.error('El usuario es obligatorio');
+      toast.error('Usuario requerido');
       return;
     }
     if (!form.password?.trim()) {
-      toast.error('La contraseña es obligatoria');
+      toast.error('Contraseña requerida');
       return;
     }
 
     setSaving(true);
     try {
-      if (modal === 'create') {
+      if (modalMode === 'create') {
         await createDevice(form);
         toast.success('Dispositivo creado');
       } else {
-        await updateDevice(selected.id, form);
+        await updateDevice(selectedId, form);
         toast.success('Dispositivo actualizado');
       }
-      setModal(null);
-      setTimeout(() => load(1), 100);
-    } catch (e) {
-      toast.error(e.response?.data?.detail || 'Error al guardar');
-    } finally { 
-      setSaving(false); 
+      closeModal();
+      loadDevices(page);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al guardar');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar dispositivo?')) return;
-    try { 
-      await deleteDevice(id); 
-      toast.success('Dispositivo eliminado'); 
-      setTimeout(() => load(page || 1), 100);
-    } catch (e) { 
-      toast.error(e.response?.data?.detail || 'Error'); 
-    }
-  };
-
-  // Safe values - with explicit array copy and validation
-  const safeDevices = (() => {
-    if (!devices) return [];
-    if (!Array.isArray(devices)) return [];
+  // Eliminar dispositivo
+  const removeDevice = async (id) => {
+    if (!confirm('¿Eliminar dispositivo?')) return;
     try {
-      return devices.map(d => d ? { ...d } : null).filter(Boolean);
-    } catch (e) {
-      console.error('[Devices] Safe array copy failed:', e);
-      return [];
+      await deleteDevice(id);
+      toast.success('Dispositivo eliminado');
+      loadDevices(page);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al eliminar');
     }
-  })();
-  const safePagination = pagination || SAFE_PAGINATION;
-  const safePage = typeof page === 'number' ? page : 1;
-  const safeTotalPages = typeof safePagination.total_pages === 'number' ? safePagination.total_pages : 1;
+  };
 
+  // Cambiar página
+  const goToPage = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      loadDevices(newPage);
+    }
+  };
+
+  // RENDER - SUPER SIMPLE
   return (
     <div className="space-y-6">
       <PageHeader title="Dispositivos / Sectoriales" />
 
+      {/* Header con botón crear */}
       <div className="flex justify-between items-center">
         <div className="text-sm text-gray-600">
-          Total: <strong>{typeof safePagination.total === 'number' ? safePagination.total : 0}</strong> dispositivos
+          Total: <strong>{total}</strong> dispositivos
         </div>
-        <Button variant="primary" onClick={openCreate}>+ Nuevo Dispositivo</Button>
+        <Button variant="primary" onClick={openCreateModal}>
+          + Nuevo Dispositivo
+        </Button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
-      ) : (safeDevices && safeDevices.length === 0) ? (
+      {/* Estado: Cargando */}
+      {loading && (
+        <div className="text-center py-8 text-gray-500">
+          Cargando dispositivos...
+        </div>
+      )}
+
+      {/* Estado: Sin dispositivos */}
+      {!loading && devices.length === 0 && (
         <Card className="text-center py-8 text-gray-500">
           No hay dispositivos configurados
         </Card>
-      ) : (safeDevices && safeDevices.length > 0) ? (
+      )}
+
+      {/* Estado: Mostrar tabla */}
+      {!loading && devices.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <Table>
             <thead className="bg-gray-50">
@@ -187,76 +184,72 @@ export default function Devices() {
               </TR>
             </thead>
             <tbody>
-              {safeDevices && safeDevices.length > 0 ? safeDevices.map((d) => (
-                <TR key={d && d.id ? d.id : `device-${Math.random()}`} className="hover:bg-gray-50">
-                  <TD>{d && d.name ? d.name : '-'}</TD>
-                  <TD className="font-mono text-sm">{d && d.ip_address ? d.ip_address : '-'}</TD>
-                  <TD>{d && d.username ? d.username : '-'}</TD>
+              {devices.map((device) => (
+                <TR key={device.id} className="hover:bg-gray-50">
+                  <TD>{device.name}</TD>
+                  <TD className="font-mono text-sm">{device.ip_address}</TD>
+                  <TD>{device.username}</TD>
                   <TD>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      (d && d.is_active === true)
+                      device.is_active 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {(d && d.is_active === true) ? 'Activo' : 'Inactivo'}
+                      {device.is_active ? 'Activo' : 'Inactivo'}
                     </span>
                   </TD>
                   <TD className="space-x-2">
                     <button 
-                      onClick={() => d && openEdit(d)}
+                      onClick={() => openEditModal(device)}
                       className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                       Editar
                     </button>
                     <button 
-                      onClick={() => d && d.id && handleDelete(d.id)}
+                      onClick={() => removeDevice(device.id)}
                       className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       Eliminar
                     </button>
                   </TD>
                 </TR>
-              )) : (
-                <TR>
-                  <TD colSpan="5" className="text-center py-4 text-gray-500">
-                    No hay dispositivos
-                  </TD>
-                </TR>
-              )}
+              ))}
             </tbody>
           </Table>
         </div>
       )}
 
       {/* Paginación */}
-      <div className="flex justify-between items-center">
-        <span className="text-sm text-gray-600">
-          Página {safePage} de {safeTotalPages}
-        </span>
-        <div className="space-x-2">
-          <Button 
-            variant="secondary" 
-            onClick={() => load(safePage - 1)}
-            disabled={safePagination.has_prev !== true}
-          >
-            ← Anterior
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={() => load(safePage + 1)}
-            disabled={safePagination.has_next !== true}
-          >
-            Siguiente →
-          </Button>
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">
+            Página {page} de {totalPages}
+          </span>
+          <div className="space-x-2">
+            <Button 
+              variant="secondary" 
+              onClick={() => goToPage(page - 1)}
+              disabled={!hasPrev}
+            >
+              ← Anterior
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => goToPage(page + 1)}
+              disabled={!hasNext}
+            >
+              Siguiente →
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Modal */}
-      {modal ? (
+      {/* Modal - SUPER SIMPLE */}
+      {modalOpen && (
         <Modal 
           open={true}
-          title={modal === 'create' ? 'Nuevo Dispositivo' : 'Editar Dispositivo'}
-          onClose={() => setModal(null)}
+          title={modalMode === 'create' ? 'Nuevo Dispositivo' : 'Editar Dispositivo'}
+          onClose={closeModal}
         >
           <div className="space-y-4">
             <div>
@@ -298,14 +291,14 @@ export default function Devices() {
               </label>
               <div className="flex gap-2">
                 <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Contraseña"
                   value={form.password || ''}
                   onChange={(e) => setForm({...form, password: e.target.value})}
                 />
-                <button
+                <button 
                   onClick={() => setShowPassword(!showPassword)}
-                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded"
                 >
                   {showPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
@@ -340,12 +333,12 @@ export default function Devices() {
             </div>
 
             <div className="flex gap-2 justify-end pt-4">
-              <Button variant="secondary" onClick={() => setModal(null)}>
+              <Button variant="secondary" onClick={closeModal}>
                 Cancelar
               </Button>
               <Button 
                 variant="primary" 
-                onClick={handleSave}
+                onClick={saveDevice}
                 disabled={saving}
               >
                 {saving ? 'Guardando...' : 'Guardar'}
@@ -353,7 +346,7 @@ export default function Devices() {
             </div>
           </div>
         </Modal>
-      ) : null}
+      )}
     </div>
   );
 }
