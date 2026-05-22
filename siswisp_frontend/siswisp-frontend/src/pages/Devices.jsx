@@ -142,8 +142,17 @@ export default function Devices() {
     }
   };
 
-  // Safe values
-  const safeDevices = Array.isArray(devices) ? devices : [];
+  // Safe values - with explicit array copy and validation
+  const safeDevices = (() => {
+    if (!devices) return [];
+    if (!Array.isArray(devices)) return [];
+    try {
+      return devices.map(d => d ? { ...d } : null).filter(Boolean);
+    } catch (e) {
+      console.error('[Devices] Safe array copy failed:', e);
+      return [];
+    }
+  })();
   const safePagination = pagination || SAFE_PAGINATION;
   const safePage = typeof page === 'number' ? page : 1;
   const safeTotalPages = typeof safePagination.total_pages === 'number' ? safePagination.total_pages : 1;
