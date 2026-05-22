@@ -81,12 +81,14 @@ export default function Payments() {
     const y = Number(year);
     const ey = Number(endYear);
     
+    // months_covered = end_month - start_month (without +1)
+    // Example: May (5) to June (6) = 6 - 5 = 1 month duration
     if (em >= m && ey === y) {
-      return em - m + 1;
+      return em - m;
     } else if (ey > y) {
-      return (12 - m + 1) + em;
+      return (12 - m) + em;
     }
-    return 1;
+    return 0;
   };
 
   const calculateEndMonthYear = (startMonth, startYear, monthsDuration) => {

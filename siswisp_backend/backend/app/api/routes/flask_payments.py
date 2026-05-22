@@ -51,15 +51,17 @@ def serialize_payment(payment):
     end_month = payment.end_month if payment.end_month is not None else payment.month
     end_year = payment.end_year if payment.end_year is not None else payment.year
     
-    # Calcular cantidad de meses cubiertos
+    # Calcular cantidad de meses cubiertos (duración)
+    # months_covered = end_month - month (without +1)
+    # Example: May (5) to June (6) = 6 - 5 = 1 month duration
     if end_month >= payment.month and end_year == payment.year:
         # Mismo año: simple resta
-        months_covered = end_month - payment.month + 1
+        months_covered = end_month - payment.month
     elif end_year > payment.year:
-        # Cruza años: (12 - mes_inicio) + mes_fin + 1
-        months_covered = (12 - payment.month + 1) + end_month
+        # Cruza años: (12 - mes_inicio) + mes_fin
+        months_covered = (12 - payment.month) + end_month
     else:
-        months_covered = 1
+        months_covered = 0
     
     return {
         "id": payment.id,
