@@ -12,8 +12,11 @@ devices_bp = Blueprint('devices', __name__, url_prefix='/api/devices')
 @devices_bp.route('/', methods=['GET'])
 def list_devices():
     """Listar todos los dispositivos/sectoriales"""
+    db = None
     try:
+        print("[Devices API] GET /api/devices/ called")
         db = next(get_db())
+        print("[Devices API] Database connection established")
         
         # Parámetros de paginación
         page = request.args.get('page', 1, type=int)
@@ -22,8 +25,12 @@ def list_devices():
         if page < 1:
             page = 1
         
+        print(f"[Devices API] Requesting page {page}, {per_page} items per page")
+        
         # Contar total
         total = db.query(Device).count()
+        print(f"[Devices API] Total devices in database: {total}")
+        
         total_pages = (total + per_page - 1) // per_page
         
         # Obtener dispositivos
@@ -31,32 +38,44 @@ def list_devices():
             (page - 1) * per_page
         ).limit(per_page).all()
         
+        print(f"[Devices API] Retrieved {len(devices)} devices for page {page}")
+        
         # SIEMPRE devolver estructura correcta
-        response = {
-            "devices": [
-                {
+        devices_list = []
+        for d in devices:
+            try:
+                device_dict = {
                     "id": d.id,
-                    "name": d.name,
-                    "ip_address": d.ip_address,
-                    "username": d.username,
+                    "name": d.name or '',
+                    "ip_address": d.ip_address or '',
+                    "username": d.username or '',
                     "description": d.description or '',
-                    "is_active": d.is_active,
+                    "is_active": bool(d.is_active) if d.is_active is not None else True,
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                     "updated_at": d.updated_at.isoformat() if d.updated_at else None,
                 }
-                for d in devices
-            ],
+                devices_list.append(device_dict)
+            except Exception as device_err:
+                print(f"[Devices API] Error serializing device {d.id}: {str(device_err)}")
+                continue
+        
+        response = {
+            "devices": devices_list,
             "current_page": page,
             "total_pages": total_pages,
             "total": total,
             "has_next": page < total_pages,
             "has_prev": page > 1,
         }
-        print(f"[Devices API] Returning response: {response}")
+        print(f"[Devices API] Returning {len(devices_list)} devices, response structure valid")
         return jsonify(response), 200
     
     except Exception as e:
-        print(f"[Devices API] Error: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[Devices API] ERROR: {str(e)}")
+        print(f"[Devices API] TRACEBACK:\n{error_trace}")
+        
         # Devolver estructura aunque haya error
         return jsonify({
             "devices": [],
@@ -67,6 +86,13 @@ def list_devices():
             "has_prev": False,
             "error": str(e)
         }), 500
+    
+    finally:
+        if db:
+            try:
+                db.close()
+            except:
+                pass
 
 
 # ──────────────────────────────────────────────
@@ -231,3 +257,52 @@ def delete_device(device_id):
     except Exception as e:
         db.rollback()
         return jsonify({"detail": f"Error al eliminar dispositivo: {str(e)}"}), 500
+
+
+# ──────────────────────────────────────────────
+# DIAGNOSTIC - Verificar estado de la BD
+# ──────────────────────────────────────────────
+@devices_bp.route('/diagnostic/status', methods=['GET'])
+def diagnostic_status():
+    """Verificar que la tabla devices exista y tenga estructura correcta"""
+    try:
+        from sqlalchemy import inspect
+        from app.core.database import engine
+        
+        inspector = inspect(engine)
+        
+        # Verificar si existe la tabla
+        tables = inspector.get_table_names()
+        devices_exists = 'devices' in tables
+        
+        if devices_exists:
+            columns = {col['name']: col['type'] for col in inspector.get_columns('devices')}
+            required_columns = ['id', 'name', 'ip_address', 'username', 'password', 'is_active', 'created_at', 'updated_at']
+            missing_columns = [col for col in required_columns if col not in columns]
+            
+            db = next(get_db())
+            device_count = db.query(Device).count()
+            
+            return jsonify({
+                "status": "ok" if not missing_columns else "warning",
+                "devices_table_exists": True,
+                "device_count": device_count,
+                "columns": columns,
+                "missing_columns": missing_columns,
+                "message": "Tabla devices está lista" if not missing_columns else f"Faltan columnas: {missing_columns}"
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "devices_table_exists": False,
+                "message": "La tabla devices no existe. Ejecutar: python init_db.py",
+                "all_tables": tables
+            }), 500
+            
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
