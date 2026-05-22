@@ -11,7 +11,16 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ client_id: '', amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), due_date: '', notes: '' });
+  const [form, setForm] = useState({ 
+    client_id: '', 
+    amount: '', 
+    month: new Date().getMonth() + 1, 
+    end_month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(), 
+    end_year: new Date().getFullYear(),
+    due_date: '', 
+    notes: '' 
+  });
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -36,7 +45,16 @@ export default function Payments() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      await createPayment({ ...form, client_id: Number(form.client_id), amount: Number(form.amount), month: Number(form.month), year: Number(form.year), due_date: form.due_date });
+      await createPayment({ 
+        ...form, 
+        client_id: Number(form.client_id), 
+        amount: Number(form.amount), 
+        month: Number(form.month),
+        end_month: Number(form.end_month),
+        year: Number(form.year),
+        end_year: Number(form.end_year),
+        due_date: form.due_date 
+      });
       toast.success('Pago creado'); setModal(false); load();
     } catch (e) { toast.error(e.response?.data?.detail || 'Error'); } finally { setSaving(false); }
   };
@@ -84,15 +102,16 @@ export default function Payments() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><span className="spinner" /></div>
         ) : (
-          <Table headers={['ID', 'Cliente', 'Monto', 'Período', 'Vencimiento', 'Estado', 'Acciones']}>
+          <Table headers={['ID', 'Cliente', 'Monto', 'Período', 'Meses cubiertos', 'Vencimiento', 'Estado', 'Acciones']}>
             {payments.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Sin pagos registrados</td></tr>
+              <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Sin pagos registrados</td></tr>
             ) : payments.map(p => (
               <TR key={p.id}>
                 <TD mono>#{p.id}</TD>
                 <TD>{getClientName(p.client_id)}</TD>
                 <TD mono>${p.amount.toFixed(2)}</TD>
-                <TD mono>{p.month}/{p.year}</TD>
+                <TD mono>{p.period || `${p.month}/${p.year}`}</TD>
+                <TD mono>{p.months_covered || 1}</TD>
                 <TD mono>
                   <span style={{ color: p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
                     {format(new Date(p.due_date), 'dd/MM/yyyy')}
@@ -118,17 +137,39 @@ export default function Payments() {
       </Card>
 
       {/* Create Modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Registrar pago manual">
+      <Modal open={modal} onClose={() => setModal(false)} title="Registrar pago (puede cubrir múltiples meses)">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Select label="Cliente" value={form.client_id} onChange={f('client_id')}>
             <option value="">Selecciona cliente</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Input label="Monto" value={form.amount} onChange={f('amount')} type="number" step="0.01" placeholder="0.00" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Input label="Mes" value={form.month} onChange={f('month')} type="number" min={1} max={12} />
-            <Input label="Año" value={form.year} onChange={f('year')} type="number" />
+          <Input label="Monto total" value={form.amount} onChange={f('amount')} type="number" step="0.01" placeholder="0.00" />
+          
+          <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 12 }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>PERÍODO DEL PAGO</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Mes inicial</label>
+                <Input value={form.month} onChange={f('month')} type="number" min={1} max={12} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Mes final</label>
+                <Input value={form.end_month} onChange={f('end_month')} type="number" min={1} max={12} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año inicial</label>
+                <Input value={form.year} onChange={f('year')} type="number" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año final</label>
+                <Input value={form.end_year} onChange={f('end_year')} type="number" />
+              </div>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+              📅 Cubre: <strong style={{ color: 'var(--accent)' }}>{form.month}/{form.year} → {form.end_month}/{form.end_year}</strong>
+            </div>
           </div>
+          
           <Input label="Fecha de vencimiento" value={form.due_date} onChange={f('due_date')} type="date" />
           <Input label="Notas" value={form.notes} onChange={f('notes')} />
         </div>

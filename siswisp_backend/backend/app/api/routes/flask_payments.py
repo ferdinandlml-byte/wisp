@@ -47,12 +47,26 @@ def token_required(f):
 
 def serialize_payment(payment):
     """Serializar pago a diccionario."""
+    # Calcular cantidad de meses cubiertos
+    if payment.end_month >= payment.month and payment.end_year == payment.year:
+        # Mismo año: simple resta
+        months_covered = payment.end_month - payment.month + 1
+    elif payment.end_year > payment.year:
+        # Cruza años: (12 - mes_inicio) + mes_fin + 1
+        months_covered = (12 - payment.month + 1) + payment.end_month
+    else:
+        months_covered = 1
+    
     return {
         "id": payment.id,
         "client_id": payment.client_id,
         "amount": float(payment.amount),
         "month": payment.month,
+        "end_month": payment.end_month,
         "year": payment.year,
+        "end_year": payment.end_year,
+        "months_covered": months_covered,
+        "period": f"{payment.month}/{payment.year} - {payment.end_month}/{payment.end_year}",
         "due_date": payment.due_date.isoformat() if payment.due_date else None,
         "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
         "status": payment.status.value if payment.status else "PENDING",
@@ -85,7 +99,7 @@ def list_payments():
 @payments_bp.route("/", methods=["POST"])
 @token_required
 def create_payment():
-    """Crear un nuevo pago."""
+    """Crear un nuevo pago (puede cubrir múltiples meses)."""
     data = request.get_json()
     
     required = ["client_id", "amount", "month", "year", "due_date"]
@@ -103,12 +117,22 @@ def create_payment():
     except (ValueError, TypeError, AttributeError):
         return jsonify({"detail": f"due_date inválido: {data.get('due_date')}. Use formato YYYY-MM-DD"}), 400
     
+    # Si no viene end_month, asumir que es un mes único
+    end_month = data.get("end_month", data.get("month"))
+    end_year = data.get("end_year", data.get("year"))
+    
+    # Validar que end_month >= month
+    if end_year < data.get("year") or (end_year == data.get("year") and end_month < data.get("month")):
+        return jsonify({"detail": "Mes final debe ser >= mes inicial"}), 400
+    
     db = get_db()
     payment = Payment(
         client_id=data.get("client_id"),
         amount=data.get("amount"),
         month=data.get("month"),
+        end_month=end_month,
         year=data.get("year"),
+        end_year=end_year,
         due_date=due_date,
         status=PaymentStatus.PENDING,
     )
