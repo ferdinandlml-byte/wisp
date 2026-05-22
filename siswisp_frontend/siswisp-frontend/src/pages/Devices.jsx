@@ -28,73 +28,32 @@ export default function Devices() {
     is_active: true,
   });
 
-  // Validar y limpiar dispositivo
-  const sanitizeDevice = (device) => {
-    try {
-      return {
-        id: Number(device?.id) || null,
-        name: String(device?.name || 'Sin nombre').trim(),
-        ip_address: String(device?.ip_address || '0.0.0.0').trim(),
-        username: String(device?.username || '').trim(),
-        description: String(device?.description || '').trim(),
-        is_active: device?.is_active === true || device?.is_active === 'true',
-        created_at: device?.created_at || null,
-        updated_at: device?.updated_at || null,
-      };
-    } catch (e) {
-      console.error('[Devices] SANITIZE: Error sanitizing device:', e, device);
-      return null;
-    }
-  };
-
   // Cargar dispositivos
   const loadDevices = (pageNum = 1) => {
-    console.log('[Devices] LOAD: Starting to load devices for page', pageNum);
+    console.log('[Devices] LOAD START:', pageNum);
     setLoading(true);
     
     getDevices({ page: pageNum, per_page: 10 })
       .then((response) => {
-        console.log('[Devices] LOAD: Full axios response:', response);
-        
-        // Axios envuelve la respuesta en response.data
+        console.log('[Devices] RESPONSE:', response.data);
         const data = response.data;
-        console.log('[Devices] LOAD: Extracted data:', data);
-        console.log('[Devices] LOAD: data.devices:', data?.devices);
-        console.log('[Devices] LOAD: Array.isArray(data.devices)?', Array.isArray(data?.devices));
-        console.log('[Devices] LOAD: data.devices length:', data?.devices?.length);
         
-        if (data && data.devices && Array.isArray(data.devices)) {
-          console.log('[Devices] LOAD: Sanitizing', data.devices.length, 'devices...');
-          
-          // Sanitizar cada dispositivo
-          const sanitizedDevices = data.devices
-            .map((d, idx) => {
-              const sanitized = sanitizeDevice(d);
-              if (!sanitized) {
-                console.warn(`[Devices] LOAD: Skipping invalid device at index ${idx}:`, d);
-                return null;
-              }
-              return sanitized;
-            })
-            .filter(d => d !== null);
-          
-          console.log('[Devices] LOAD: Setting devices array with', sanitizedDevices.length, 'sanitized items');
-          setDevices(sanitizedDevices);
+        if (data?.devices && Array.isArray(data.devices)) {
+          console.log('[Devices] FOUND', data.devices.length, 'devices');
+          setDevices(data.devices);
           setTotal(data.total || 0);
           setTotalPages(data.total_pages || 1);
-          setHasNext(data.has_next === true);
-          setHasPrev(data.has_prev === true);
+          setHasNext(data.has_next || false);
+          setHasPrev(data.has_prev || false);
           setPage(pageNum);
-          console.log('[Devices] LOAD: State updated successfully');
         } else {
-          console.error('[Devices] LOAD: Response structure invalid', { data, hasDevices: !!data?.devices, isArray: Array.isArray(data?.devices) });
+          console.error('[Devices] INVALID RESPONSE:', data);
           setDevices([]);
         }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('[Devices] LOAD: Error loading devices:', err);
-        console.error('[Devices] LOAD: Error response:', err.response?.data);
+        console.error('[Devices] ERROR:', err);
         setDevices([]);
         setLoading(false);
         toast.error('Error al cargar dispositivos');
@@ -156,21 +115,14 @@ export default function Devices() {
 
     setSaving(true);
     try {
-      console.log('[Devices] SAVE: Starting save with data:', form);
-      
       if (modalMode === 'create') {
-        console.log('[Devices] SAVE: Creating new device');
         await createDevice(form);
-        console.log('[Devices] SAVE: Device created successfully on backend');
         toast.success('Dispositivo creado');
       } else {
-        console.log('[Devices] SAVE: Updating device', selectedId);
         await updateDevice(selectedId, form);
-        console.log('[Devices] SAVE: Device updated successfully on backend');
         toast.success('Dispositivo actualizado');
       }
       
-      console.log('[Devices] SAVE: Closing modal');
       setModalOpen(false);
       setForm({
         name: '',
@@ -181,16 +133,11 @@ export default function Devices() {
         is_active: true,
       });
       
-      // Esperar un poquito antes de recargar para que el backend procese
-      console.log('[Devices] SAVE: Waiting 500ms before reloading');
-      setTimeout(() => {
-        console.log('[Devices] SAVE: Reloading devices list from page 1');
-        loadDevices(1);
-      }, 500);
+      // Recargar
+      setTimeout(() => loadDevices(1), 300);
       
     } catch (err) {
-      console.error('[Devices] SAVE: Error:', err);
-      console.error('[Devices] SAVE: Error details:', err.response?.data);
+      console.error('[Devices] SAVE ERROR:', err);
       toast.error(err.response?.data?.detail || 'Error al guardar');
     } finally {
       setSaving(false);
@@ -248,14 +195,14 @@ export default function Devices() {
       )}
 
       {/* Estado: Sin dispositivos */}
-      {!loading && devices.length === 0 && (
+      {!loading && (!devices || devices.length === 0) && (
         <Card className="text-center py-8 text-gray-500">
           No hay dispositivos configurados
         </Card>
       )}
 
       {/* Estado: Mostrar tabla */}
-      {!loading && devices && devices.length > 0 && (
+      {!loading && devices && Array.isArray(devices) && devices.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <Table>
             <thead className="bg-gray-50">
@@ -268,44 +215,36 @@ export default function Devices() {
               </TR>
             </thead>
             <tbody>
-              {devices.map((device) => {
-                // Validar que device existe y tiene propiedades
-                if (!device || typeof device !== 'object') {
-                  console.warn('[Devices] Skipping invalid device:', device);
-                  return null;
-                }
-                
-                return (
-                  <TR key={device?.id || Math.random()} className="hover:bg-gray-50">
-                    <TD>{device?.name || 'Sin nombre'}</TD>
-                    <TD className="font-mono text-sm">{device?.ip_address || '0.0.0.0'}</TD>
-                    <TD>{device?.username || '-'}</TD>
-                    <TD>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        device?.is_active === true
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {device?.is_active === true ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </TD>
-                    <TD className="space-x-2">
-                      <button 
-                        onClick={() => device && openEditModal(device)}
-                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        Editar
-                      </button>
-                      <button 
-                        onClick={() => device?.id && removeDevice(device.id)}
-                        className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        Eliminar
-                      </button>
-                    </TD>
-                  </TR>
-                );
-              })}
+              {devices.map((device, idx) => (
+                <TR key={`device-${device.id}-${idx}`} className="hover:bg-gray-50">
+                  <TD>{device.name}</TD>
+                  <TD className="font-mono text-sm">{device.ip_address}</TD>
+                  <TD>{device.username}</TD>
+                  <TD>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      device.is_active
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {device.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </TD>
+                  <TD className="space-x-2">
+                    <button 
+                      onClick={() => openEditModal(device)}
+                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      onClick={() => removeDevice(device.id)}
+                      className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Eliminar
+                    </button>
+                  </TD>
+                </TR>
+              ))}
             </tbody>
           </Table>
         </div>
