@@ -14,11 +14,9 @@ export default function Payments() {
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ 
     client_id: '', 
-    amount: '', 
     month: new Date().getMonth() + 1, 
-    end_month: new Date().getMonth() + 1,
     year: new Date().getFullYear(), 
-    end_year: new Date().getFullYear(),
+    months_duration: 1,
     status: 'PENDING',
     notes: '' 
   });
@@ -86,34 +84,45 @@ export default function Payments() {
     return 1;
   };
 
-  const calculateAmount = (clientId, month, endMonth, year, endYear) => {
+  const calculateEndMonthYear = (startMonth, startYear, monthsDuration) => {
+    let endMonth = startMonth + monthsDuration - 1;
+    let endYear = startYear;
+    
+    while (endMonth > 12) {
+      endMonth -= 12;
+      endYear += 1;
+    }
+    
+    return { endMonth, endYear };
+  };
+
+  const getEndMonthYearFromForm = () => {
+    return calculateEndMonthYear(form.month, form.year, form.months_duration);
+  };
+
+  const calculateAmount = (clientId, monthsDuration) => {
     if (!clientId) return '';
     const client = clients.find(c => c.id === Number(clientId));
     if (!client || !client.plan) return '';
     
-    const monthsCovered = calculateMonthsCovered(month, endMonth, year, endYear);
     const planPrice = client.plan.price || 0;
-    return (planPrice * monthsCovered).toFixed(2);
+    return (planPrice * monthsDuration).toFixed(2);
   };
 
-  // Recalculate amount when client, month, end_month, year, or end_year changes
+  // Recalculate amount when client or months_duration changes
   useEffect(() => {
-    if (form.client_id && modal) {
-      const newAmount = calculateAmount(form.client_id, form.month, form.end_month, form.year, form.end_year);
-      if (newAmount && form.amount !== newAmount) {
-        setForm(prev => ({ ...prev, amount: newAmount }));
-      }
+    if (form.client_id && modal && form.months_duration) {
+      const newAmount = calculateAmount(form.client_id, form.months_duration);
+      // Amount is calculated on display, not stored in form
     }
-  }, [form.client_id, form.month, form.end_month, form.year, form.end_year, modal]);
+  }, [form.client_id, form.months_duration, modal]);
 
   const openCreate = () => {
     setForm({ 
       client_id: '', 
-      amount: '', 
       month: new Date().getMonth() + 1, 
-      end_month: new Date().getMonth() + 1,
       year: new Date().getFullYear(), 
-      end_year: new Date().getFullYear(),
+      months_duration: 1,
       status: 'PENDING',
       notes: '' 
     });
@@ -122,14 +131,15 @@ export default function Payments() {
   };
 
   const openEdit = (payment) => {
+    // Calculate months_duration from payment month/end_month/year/end_year
+    const monthsCovered = calculateMonthsCovered(payment.month, payment.end_month, payment.year, payment.end_year);
+    
     setSelected(payment);
     setForm({
       client_id: payment.client_id,
-      amount: payment.amount,
       month: payment.month,
-      end_month: payment.end_month,
       year: payment.year,
-      end_year: payment.end_year,
+      months_duration: monthsCovered,
       status: payment.status,
       notes: payment.notes || ''
     });
@@ -139,13 +149,14 @@ export default function Payments() {
   const handleCreate = async () => {
     setSaving(true);
     try {
+      const { endMonth, endYear } = getEndMonthYearFromForm();
+      
       const payload = { 
         client_id: Number(form.client_id), 
-        amount: Number(form.amount), 
         month: Number(form.month),
-        end_month: Number(form.end_month),
+        end_month: endMonth,
         year: Number(form.year),
-        end_year: Number(form.end_year),
+        end_year: endYear,
         status: form.status,
         notes: form.notes
       };
@@ -251,59 +262,38 @@ export default function Payments() {
           </Select>
           
           <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 12 }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>💰 MONTO TOTAL</div>
-            {form.client_id ? (
-              <div>
-                <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 8 }}>
-                  <strong>${(clients.find(c => c.id === Number(form.client_id))?.plan?.price || 0).toFixed(2)}</strong>/mes × <strong>{calculateMonthsCovered(form.month, form.end_month, form.year, form.end_year)}</strong> meses = 
-                  <strong style={{ color: 'var(--accent)', marginLeft: 6 }}>${form.amount || '0.00'}</strong>
-                </div>
-                <Input 
-                  label="Monto (editable)" 
-                  value={form.amount} 
-                  onChange={f('amount')} 
-                  type="number" 
-                  step="0.01" 
-                  placeholder="0.00"
-                  style={{ fontSize: 12 }}
-                />
-                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)' }}>
-                  💡 Se calcula automáticamente. Edita si necesitas ajustar.
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>
-                Selecciona un cliente primero para ver el cálculo
-              </div>
-            )}
-          </div>
-          
-          <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 12 }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>PERÍODO DEL PAGO</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>� FECHA INICIAL Y DURACIÓN</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Mes inicial</label>
-                <Input value={form.month} onChange={f('month')} type="number" min={1} max={12} />
+                <Select value={form.month} onChange={f('month')} style={{ width: '100%' }}>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                    <option key={m} value={m}>{getMonthName(m)}</option>
+                  ))}
+                </Select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Mes final</label>
-                <Input value={form.end_month} onChange={f('end_month')} type="number" min={1} max={12} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año inicial</label>
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año</label>
                 <Input value={form.year} onChange={f('year')} type="number" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año final</label>
-                <Input value={form.end_year} onChange={f('end_year')} type="number" />
+                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Cantidad de meses</label>
+                <Input value={form.months_duration} onChange={f('months_duration')} type="number" min={1} max={36} />
               </div>
             </div>
-            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
-              📅 Cubre: <strong style={{ color: 'var(--accent)' }}>{getMonthName(form.month)}/{form.year} → {getMonthName(form.end_month)}/{form.end_year}</strong>
-              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)', background: 'rgba(0,212,255,0.05)', padding: '8px 10px', borderRadius: 4 }}>
-                ⏰ Vencimiento calculado automáticamente según día de cobro
+            
+            {form.client_id && (
+              <div style={{ marginTop: 14, padding: 10, background: 'rgba(0,212,255,0.1)', borderRadius: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 8 }}>
+                  <strong>Resumen:</strong><br />
+                  📍 {getMonthName(form.month)} {form.year} →  <strong>{getMonthName(getEndMonthYearFromForm().endMonth)}/{getEndMonthYearFromForm().endYear}</strong><br />
+                  💰 {clients.find(c => c.id === Number(form.client_id))?.plan?.price.toFixed(2) || '0.00'} × {form.months_duration} meses = <strong style={{ color: 'var(--accent)', fontSize: 13 }}>
+                    ${calculateAmount(form.client_id, form.months_duration)}
+                  </strong><br />
+                  ⏰ Vencimiento: automático según día de cobro
+                </div>
               </div>
-            </div>
+            )}
           </div>
           
           <Select label="Estado del pago" value={form.status} onChange={f('status')}>
