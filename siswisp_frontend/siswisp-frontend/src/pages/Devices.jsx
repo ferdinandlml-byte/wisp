@@ -8,7 +8,7 @@ const EMPTY_FORM = { name: '', ip_address: '', username: '', password: '', descr
 export default function Devices() {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | 'create' | 'edit'
+  const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -20,22 +20,27 @@ export default function Devices() {
     setLoading(true);
     getDevices({ page: pageNum, per_page: 10 })
       .then(r => {
-        const devicesData = r.data?.devices;
+        // Defensive: ensure devices is always an array
+        const devicesData = r.data?.devices || [];
         if (Array.isArray(devicesData)) {
           setDevices(devicesData);
           setPagination({
             total: r.data?.total || 0,
             total_pages: r.data?.total_pages || 1,
-            current_page: r.data?.current_page || pageNum
+            current_page: r.data?.current_page || pageNum,
+            has_next: r.data?.has_next || false,
+            has_prev: r.data?.has_prev || false
           });
           setPage(pageNum);
         } else {
+          console.warn('Devices data is not an array:', r.data);
           setDevices([]);
         }
       })
       .catch(err => {
-        console.error('Error loading devices:', err);
+        console.error('Error loading devices:', err.message);
         setDevices([]);
+        setPagination({ total: 0, total_pages: 1, has_next: false, has_prev: false });
       })
       .finally(() => setLoading(false));
   };
@@ -140,36 +145,44 @@ export default function Devices() {
               </TR>
             </thead>
             <tbody>
-              {Array.isArray(devices) && devices.map(d => (
-                <TR key={d.id} className="hover:bg-gray-50">
-                  <TD>{d.name}</TD>
-                  <TD className="font-mono text-sm">{d.ip_address}</TD>
-                  <TD>{d.username}</TD>
-                  <TD>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      d.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {d.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </TD>
-                  <TD className="space-x-2">
-                    <button 
-                      onClick={() => openEdit(d)}
-                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(d.id)}
-                      className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      Eliminar
-                    </button>
+              {(Array.isArray(devices) && devices.length > 0) ? (
+                devices.map(d => (
+                  <TR key={d.id} className="hover:bg-gray-50">
+                    <TD>{d.name}</TD>
+                    <TD className="font-mono text-sm">{d.ip_address}</TD>
+                    <TD>{d.username}</TD>
+                    <TD>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        d.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {d.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </TD>
+                    <TD className="space-x-2">
+                      <button 
+                        onClick={() => openEdit(d)}
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(d.id)}
+                        className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Eliminar
+                      </button>
+                    </TD>
+                  </TR>
+                ))
+              ) : (
+                <TR>
+                  <TD colSpan="5" className="text-center py-4 text-gray-500">
+                    Sin dispositivos disponibles
                   </TD>
                 </TR>
-              ))}
+              )}
             </tbody>
           </Table>
         </div>
