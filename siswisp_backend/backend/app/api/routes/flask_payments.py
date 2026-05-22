@@ -73,7 +73,7 @@ def serialize_payment(payment):
         "period": f"{payment.month}/{payment.year} - {end_month}/{end_year}",
         "due_date": payment.due_date.isoformat() if payment.due_date else None,
         "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
-        "status": payment.status.value if payment.status else "PENDING",
+        "status": payment.status.name if payment.status else "PENDING",
     }
 
 

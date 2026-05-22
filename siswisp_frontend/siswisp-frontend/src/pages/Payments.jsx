@@ -151,6 +151,13 @@ export default function Payments() {
     try {
       const { endMonth, endYear } = getEndMonthYearFromForm();
       
+      // Validar datos requeridos
+      if (!form.client_id) {
+        toast.error('Debes seleccionar un cliente');
+        setSaving(false);
+        return;
+      }
+
       const payload = { 
         client_id: Number(form.client_id), 
         month: Number(form.month),
@@ -158,8 +165,10 @@ export default function Payments() {
         year: Number(form.year),
         end_year: endYear,
         status: form.status,
-        notes: form.notes
+        notes: form.notes || ''
       };
+
+      console.log('Enviando payload:', payload); // DEBUG
 
       if (modal === 'create') {
         await createPayment(payload);
@@ -172,7 +181,8 @@ export default function Payments() {
       setModal(null);
       load();
     } catch (e) { 
-      toast.error(e.response?.data?.detail || 'Error'); 
+      console.error('Error:', e); // DEBUG
+      toast.error(e.response?.data?.detail || 'Error al guardar'); 
     } finally { 
       setSaving(false); 
     }
