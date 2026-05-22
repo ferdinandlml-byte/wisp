@@ -266,35 +266,41 @@ export default function Payments() {
           </Select>
           
           <div style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 12 }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>� FECHA INICIAL Y DURACIÓN</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>PERIODO Y DURACION</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Mes inicial</label>
-                <Select value={form.month} onChange={f('month')} style={{ width: '100%' }}>
+                <label style={{ display: 'block', fontSize: 10, color: 'var(--text3)', marginBottom: 5, fontWeight: 500 }}>MES INICIAL</label>
+                <Select value={form.month} onChange={f('month')} style={{ width: '100%', fontSize: 13 }}>
                   {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
                     <option key={m} value={m}>{getMonthName(m)}</option>
                   ))}
                 </Select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Año</label>
-                <Input value={form.year} onChange={f('year')} type="number" />
+                <label style={{ display: 'block', fontSize: 10, color: 'var(--text3)', marginBottom: 5, fontWeight: 500 }}>AÑO</label>
+                <Input value={form.year} onChange={f('year')} type="number" style={{ fontSize: 13 }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Cantidad de meses</label>
-                <Input value={form.months_duration} onChange={f('months_duration')} type="number" min={1} max={36} />
+                <label style={{ display: 'block', fontSize: 10, color: 'var(--text3)', marginBottom: 5, fontWeight: 500 }}>CANTIDAD MESES</label>
+                <Input value={form.months_duration} onChange={f('months_duration')} type="number" min={1} max={36} style={{ fontSize: 13 }} />
               </div>
             </div>
             
             {form.client_id && (
-              <div style={{ marginTop: 14, padding: 10, background: 'rgba(0,212,255,0.1)', borderRadius: 4 }}>
-                <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 8 }}>
-                  <strong>Resumen:</strong><br />
-                  📍 {getMonthName(form.month)} {form.year} →  <strong>{getMonthName(getEndMonthYearFromForm().endMonth)}/{getEndMonthYearFromForm().endYear}</strong><br />
-                  💰 {clients.find(c => c.id === Number(form.client_id))?.plan?.price.toFixed(2) || '0.00'} × {form.months_duration} meses = <strong style={{ color: 'var(--accent)', fontSize: 13 }}>
-                    ${calculateAmount(form.client_id, form.months_duration)}
-                  </strong><br />
-                  ⏰ Vencimiento: automático según día de cobro
+              <div style={{ marginTop: 12, padding: 12, background: 'rgba(76, 175, 80, 0.08)', border: '1px solid rgba(76, 175, 80, 0.2)', borderRadius: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', marginBottom: 8, textTransform: 'uppercase' }}>RESUMEN DEL PAGO</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12, color: 'var(--text)' }}>
+                  <div>
+                    <span style={{ color: 'var(--text3)', fontSize: 10, fontWeight: 500 }}>PERIODO</span><br />
+                    <strong style={{ color: 'var(--accent)', fontSize: 13 }}>{getMonthName(form.month)} a {getMonthName(getEndMonthYearFromForm().endMonth)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text3)', fontSize: 10, fontWeight: 500 }}>MONTO TOTAL</span><br />
+                    <strong style={{ color: 'var(--accent)', fontSize: 13 }}>$ {calculateAmount(form.client_id, form.months_duration)}</strong>
+                  </div>
+                </div>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(76, 175, 80, 0.2)', fontSize: 10, color: 'var(--text2)' }}>
+                  {clients.find(c => c.id === Number(form.client_id))?.plan?.price.toFixed(2) || '0.00'}/mes x {form.months_duration} meses = $ {calculateAmount(form.client_id, form.months_duration)}
                 </div>
               </div>
             )}
