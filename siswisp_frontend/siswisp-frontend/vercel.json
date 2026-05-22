@@ -1,4 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "build"
+  "outputDirectory": "build",
+  "env": {
+    "FORCE_REBUILD": "v5-devices-fix"
+  }
 }
