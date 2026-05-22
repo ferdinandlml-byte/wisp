@@ -76,17 +76,27 @@ export default function Payments() {
   };
 
   const calculateMonthsCovered = (month, endMonth, year, endYear) => {
-    if (endMonth >= month && endYear === year) {
-      return endMonth - month + 1;
-    } else if (endYear > year) {
-      return (12 - month + 1) + endMonth;
+    const m = Number(month);
+    const em = Number(endMonth);
+    const y = Number(year);
+    const ey = Number(endYear);
+    
+    if (em >= m && ey === y) {
+      return em - m + 1;
+    } else if (ey > y) {
+      return (12 - m + 1) + em;
     }
     return 1;
   };
 
   const calculateEndMonthYear = (startMonth, startYear, monthsDuration) => {
-    let endMonth = startMonth + monthsDuration - 1;
-    let endYear = startYear;
+    // Ensure all are numbers (duration comes from input as string)
+    const start = Number(startMonth);
+    const duration = Number(monthsDuration);
+    const startY = Number(startYear);
+    
+    let endMonth = start + duration - 1;
+    let endYear = startY;
     
     while (endMonth > 12) {
       endMonth -= 12;
@@ -106,7 +116,8 @@ export default function Payments() {
     if (!client || !client.plan) return '';
     
     const planPrice = client.plan.price || 0;
-    return (planPrice * monthsDuration).toFixed(2);
+    const duration = Number(monthsDuration); // Ensure it's a number
+    return (planPrice * duration).toFixed(2);
   };
 
   // Recalculate amount when client or months_duration changes
