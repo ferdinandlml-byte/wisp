@@ -3,9 +3,8 @@ import { getDevices, createDevice, updateDevice, deleteDevice } from '../api';
 import { PageHeader, Button, Table, TR, TD, Modal, Input, Card } from '../components/UI';
 import toast from 'react-hot-toast';
 
+// CACHE BUST: v5 - Force complete rebuild
 const EMPTY_FORM = { name: '', ip_address: '', username: '', password: '', description: '', is_active: true };
-
-// DEFENSIVO: Verificar estado inicial
 const SAFE_PAGINATION = { total: 0, total_pages: 1, current_page: 1, has_next: false, has_prev: false };
 
 export default function Devices() {
@@ -179,36 +178,42 @@ export default function Devices() {
               </TR>
             </thead>
             <tbody>
-              {safeDevices.map(d => (
-                <TR key={d?.id || Math.random()} className="hover:bg-gray-50">
-                  <TD>{d?.name || '-'}</TD>
-                  <TD className="font-mono text-sm">{d?.ip_address || '-'}</TD>
-                  <TD>{d?.username || '-'}</TD>
+              {safeDevices && safeDevices.length > 0 ? safeDevices.map((d) => (
+                <TR key={d && d.id ? d.id : `device-${Math.random()}`} className="hover:bg-gray-50">
+                  <TD>{d && d.name ? d.name : '-'}</TD>
+                  <TD className="font-mono text-sm">{d && d.ip_address ? d.ip_address : '-'}</TD>
+                  <TD>{d && d.username ? d.username : '-'}</TD>
                   <TD>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      d?.is_active 
+                      (d && d.is_active === true)
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {d?.is_active ? 'Activo' : 'Inactivo'}
+                      {(d && d.is_active === true) ? 'Activo' : 'Inactivo'}
                     </span>
                   </TD>
                   <TD className="space-x-2">
                     <button 
-                      onClick={() => openEdit(d)}
+                      onClick={() => d && openEdit(d)}
                       className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                       Editar
                     </button>
                     <button 
-                      onClick={() => d?.id && handleDelete(d.id)}
+                      onClick={() => d && d.id && handleDelete(d.id)}
                       className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       Eliminar
                     </button>
                   </TD>
                 </TR>
-              ))}
+              )) : (
+                <TR>
+                  <TD colSpan="5" className="text-center py-4 text-gray-500">
+                    No hay dispositivos
+                  </TD>
+                </TR>
+              )}
             </tbody>
           </Table>
         </div>
