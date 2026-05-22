@@ -8,7 +8,7 @@ export default function Network() {
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    getClients({ status: 'activo' }).then(r => setClients(r.data)).catch(() => {});
+    getClients({ status: 'activo', per_page: 100 }).then(r => setClients(r.data)).catch(() => {});
   }, []);
 
   const pingOne = async (c) => {

@@ -34,7 +34,11 @@ export default function Payments() {
 
   useEffect(() => { 
     load(); 
-    getClients().then(r => setClients(Array.isArray(r.data) ? r.data : r.data?.data || [])).catch(() => setClients([])); 
+    // Get all clients (per_page=100) for dropdown
+    getClients({ per_page: 100 }).then(r => {
+      const clientsData = Array.isArray(r.data) ? r.data : r.data?.data || [];
+      setClients(clientsData);
+    }).catch(() => setClients([])); 
   }, []);
   useEffect(() => { load(); }, [statusFilter]);
 
