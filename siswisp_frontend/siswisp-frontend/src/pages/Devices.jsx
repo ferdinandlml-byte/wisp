@@ -24,27 +24,33 @@ export default function Devices() {
       .then(r => {
         console.log('[Devices] Full response:', r);
         console.log('[Devices] Response data:', r.data);
-        // Defensive: ensure devices is always an array
-        const devicesData = (r.data?.devices) || [];
-        console.log('[Devices] Extracted devices:', devicesData, 'Is array?', Array.isArray(devicesData));
-        if (Array.isArray(devicesData)) {
-          setDevices(devicesData);
-          setPagination({
-            total: r.data?.total || 0,
-            total_pages: r.data?.total_pages || 1,
-            current_page: r.data?.current_page || pageNum,
-            has_next: r.data?.has_next || false,
-            has_prev: r.data?.has_prev || false
-          });
-          setPage(pageNum);
-        } else {
-          console.warn('[Devices] Devices data is not an array:', r.data);
+        console.log('[Devices] Response data type:', typeof r.data);
+        
+        // Validate response structure
+        if (!r || !r.data || typeof r.data !== 'object') {
+          console.error('[Devices] Invalid response structure:', r);
           setDevices([]);
+          setPagination({ total: 0, total_pages: 1, has_next: false, has_prev: false });
+          return;
         }
+        
+        // Extract devices safely
+        const devicesData = Array.isArray(r.data?.devices) ? r.data.devices : [];
+        console.log('[Devices] Extracted devices:', devicesData);
+        
+        setDevices(devicesData);
+        setPagination({
+          total: typeof r.data?.total === 'number' ? r.data.total : 0,
+          total_pages: typeof r.data?.total_pages === 'number' ? r.data.total_pages : 1,
+          current_page: typeof r.data?.current_page === 'number' ? r.data.current_page : pageNum,
+          has_next: r.data?.has_next === true,
+          has_prev: r.data?.has_prev === true
+        });
+        setPage(pageNum);
       })
       .catch(err => {
         console.error('[Devices] Error loading:', err.message || err);
-        console.error('[Devices] Error details:', err);
+        console.error('[Devices] Full error:', err);
         setDevices([]);
         setPagination({ total: 0, total_pages: 1, has_next: false, has_prev: false });
       })
