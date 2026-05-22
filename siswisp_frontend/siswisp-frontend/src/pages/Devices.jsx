@@ -3,6 +3,7 @@ import { getDevices, createDevice, updateDevice, deleteDevice } from '../api';
 import { PageHeader, Button, Table, TR, TD, Modal, Input, Card } from '../components/UI';
 import toast from 'react-hot-toast';
 
+// Cache bust: v2 - Force rebuild
 const EMPTY_FORM = { name: '', ip_address: '', username: '', password: '', description: '', is_active: true };
 
 export default function Devices() {
@@ -18,10 +19,14 @@ export default function Devices() {
 
   const load = (pageNum = 1) => {
     setLoading(true);
+    console.log('[Devices] Loading page', pageNum, 'from API:', getDevices.toString());
     getDevices({ page: pageNum, per_page: 10 })
       .then(r => {
+        console.log('[Devices] Full response:', r);
+        console.log('[Devices] Response data:', r.data);
         // Defensive: ensure devices is always an array
-        const devicesData = r.data?.devices || [];
+        const devicesData = (r.data?.devices) || [];
+        console.log('[Devices] Extracted devices:', devicesData, 'Is array?', Array.isArray(devicesData));
         if (Array.isArray(devicesData)) {
           setDevices(devicesData);
           setPagination({
@@ -33,12 +38,13 @@ export default function Devices() {
           });
           setPage(pageNum);
         } else {
-          console.warn('Devices data is not an array:', r.data);
+          console.warn('[Devices] Devices data is not an array:', r.data);
           setDevices([]);
         }
       })
       .catch(err => {
-        console.error('Error loading devices:', err.message);
+        console.error('[Devices] Error loading:', err.message || err);
+        console.error('[Devices] Error details:', err);
         setDevices([]);
         setPagination({ total: 0, total_pages: 1, has_next: false, has_prev: false });
       })
@@ -128,7 +134,7 @@ export default function Devices() {
 
       {loading ? (
         <div className="text-center py-8 text-gray-500">Cargando...</div>
-      ) : devices.length === 0 ? (
+      ) : !Array.isArray(devices) || devices.length === 0 ? (
         <Card className="text-center py-8 text-gray-500">
           No hay dispositivos configurados
         </Card>
