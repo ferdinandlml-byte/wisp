@@ -147,7 +147,64 @@ def create_payment():
     return jsonify(serialize_payment(payment)), 201
 
 
-@payments_bp.route("/<int:payment_id>/mark-paid", methods=["POST"])
+@payments_bp.route("/<int:payment_id>", methods=["PUT"])
+@token_required
+def update_payment(payment_id):
+    """Editar un pago existente."""
+    data = request.get_json()
+    db = get_db()
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    
+    if not payment:
+        return jsonify({"detail": "Pago no encontrado"}), 404
+    
+    try:
+        # Actualizar campos si vienen en la request
+        if "client_id" in data:
+            payment.client_id = data["client_id"]
+        
+        if "amount" in data:
+            payment.amount = data["amount"]
+        
+        if "month" in data:
+            payment.month = data["month"]
+        
+        if "end_month" in data:
+            payment.end_month = data["end_month"]
+        
+        if "year" in data:
+            payment.year = data["year"]
+        
+        if "end_year" in data:
+            payment.end_year = data["end_year"]
+        
+        if "due_date" in data:
+            due_date_str = data["due_date"]
+            if 'T' in due_date_str:
+                due_date = datetime.fromisoformat(due_date_str.split('.')[0])
+            else:
+                due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+            payment.due_date = due_date
+        
+        if "status" in data:
+            try:
+                payment.status = PaymentStatus[data["status"]]
+                if data["status"] == "PAID":
+                    payment.paid_at = datetime.utcnow()
+            except KeyError:
+                return jsonify({"detail": f"Status inválido: {data['status']}"}), 400
+        
+        if "notes" in data:
+            payment.notes = data["notes"]
+        
+        db.commit()
+        db.refresh(payment)
+        
+        return jsonify(serialize_payment(payment)), 200
+    
+    except Exception as e:
+        db.rollback()
+        return jsonify({"detail": str(e)}), 500
 @token_required
 def mark_paid(payment_id):
     """Marcar un pago como pagado."""

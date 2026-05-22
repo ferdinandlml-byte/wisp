@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getPayments, markPaid, createPayment, getClients } from '../api';
+import { getPayments, markPaid, createPayment, updatePayment, getClients } from '../api';
 import { PageHeader, Button, Table, TR, TD, StatusTag, Modal, Input, Select, Card } from '../components/UI';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -10,7 +10,8 @@ export default function Payments() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(null); // null | 'create' | 'edit'
+  const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ 
     client_id: '', 
     amount: '', 
@@ -19,6 +20,7 @@ export default function Payments() {
     year: new Date().getFullYear(), 
     end_year: new Date().getFullYear(),
     due_date: '', 
+    status: 'PENDING',
     notes: '' 
   });
   const [saving, setSaving] = useState(false);
@@ -43,24 +45,77 @@ export default function Payments() {
   useEffect(() => { load(); }, [statusFilter]);
 
   const handleMarkPaid = async (id) => {
-    try { await markPaid(id); toast.success('Pago registrado ✅'); load(); } catch { toast.error('Error'); }
+    try { 
+      await updatePayment(id, { status: 'PAID' });
+      toast.success('Pago registrado como pagado ✅'); 
+      load(); 
+    } catch (e) { 
+      toast.error(e.response?.data?.detail || 'Error'); 
+    }
+  };
+
+  const openCreate = () => {
+    setForm({ 
+      client_id: '', 
+      amount: '', 
+      month: new Date().getMonth() + 1, 
+      end_month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(), 
+      end_year: new Date().getFullYear(),
+      due_date: '', 
+      status: 'PENDING',
+      notes: '' 
+    });
+    setSelected(null);
+    setModal('create');
+  };
+
+  const openEdit = (payment) => {
+    setSelected(payment);
+    setForm({
+      client_id: payment.client_id,
+      amount: payment.amount,
+      month: payment.month,
+      end_month: payment.end_month,
+      year: payment.year,
+      end_year: payment.end_year,
+      due_date: payment.due_date?.split('T')[0] || '',
+      status: payment.status,
+      notes: payment.notes || ''
+    });
+    setModal('edit');
   };
 
   const handleCreate = async () => {
     setSaving(true);
     try {
-      await createPayment({ 
-        ...form, 
+      const payload = { 
         client_id: Number(form.client_id), 
         amount: Number(form.amount), 
         month: Number(form.month),
         end_month: Number(form.end_month),
         year: Number(form.year),
         end_year: Number(form.end_year),
-        due_date: form.due_date 
-      });
-      toast.success('Pago creado'); setModal(false); load();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Error'); } finally { setSaving(false); }
+        due_date: form.due_date,
+        status: form.status,
+        notes: form.notes
+      };
+
+      if (modal === 'create') {
+        await createPayment(payload);
+        toast.success('Pago creado ✅');
+      } else {
+        await updatePayment(selected.id, payload);
+        toast.success('Pago actualizado ✅');
+      }
+      
+      setModal(null);
+      load();
+    } catch (e) { 
+      toast.error(e.response?.data?.detail || 'Error'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -72,7 +127,7 @@ export default function Payments() {
       <PageHeader
         title="Pagos y Facturación"
         subtitle={`${payments.length} registros`}
-        action={<Button onClick={() => setModal(true)}>+ Nuevo pago</Button>}
+        action={<Button onClick={openCreate}>+ Nuevo pago</Button>}
       />
 
       {/* Summary bar */}
@@ -122,16 +177,14 @@ export default function Payments() {
                   </span>
                 </TD>
                 <TD><StatusTag status={p.status === 'PAID' ? 'pagado' : p.status === 'OVERDUE' ? 'vencido' : 'pendiente'} /></TD>
-                <TD>
+                <TD style={{ display: 'flex', gap: 6 }}>
+                  <Button size="sm" variant="secondary" onClick={() => openEdit(p)}>
+                    ✏️ Editar
+                  </Button>
                   {(p.status === 'PENDING' || p.status === 'OVERDUE') && (
                     <Button size="sm" variant="success" onClick={() => handleMarkPaid(p.id)}>
-                      ✓ Marcar pagado
+                      ✓ Pagado
                     </Button>
-                  )}
-                  {p.status === 'PAID' && (
-                    <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-                      {p.paid_at ? format(new Date(p.paid_at), 'dd/MM/yy HH:mm') : '—'}
-                    </span>
                   )}
                 </TD>
               </TR>
@@ -140,8 +193,8 @@ export default function Payments() {
         )}
       </Card>
 
-      {/* Create Modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Registrar pago (puede cubrir múltiples meses)">
+      {/* Create/Edit Modal */}
+      <Modal open={modal} onClose={() => setModal(null)} title={modal === 'create' ? 'Registrar nuevo pago' : 'Editar pago'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Select label="Cliente" value={form.client_id} onChange={f('client_id')}>
             <option value="">Selecciona cliente</option>
@@ -175,11 +228,20 @@ export default function Payments() {
           </div>
           
           <Input label="Fecha de vencimiento" value={form.due_date} onChange={f('due_date')} type="date" />
+          
+          <Select label="Estado del pago" value={form.status} onChange={f('status')}>
+            <option value="PENDING">Pendiente</option>
+            <option value="PAID">Pagado</option>
+            <option value="OVERDUE">Vencido</option>
+          </Select>
+          
           <Input label="Notas" value={form.notes} onChange={f('notes')} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-          <Button variant="ghost" onClick={() => setModal(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={saving}>{saving ? 'Guardando...' : 'Crear pago'}</Button>
+          <Button variant="ghost" onClick={() => setModal(null)}>Cancelar</Button>
+          <Button onClick={handleCreate} disabled={saving}>
+            {saving ? 'Guardando...' : modal === 'create' ? 'Crear pago' : 'Actualizar pago'}
+          </Button>
         </div>
       </Modal>
     </div>
