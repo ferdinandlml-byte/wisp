@@ -103,8 +103,8 @@ def list_payments():
 def calculate_due_date(client_id, end_month, end_year):
     """Calcular fecha de vencimiento basada en día_cobro del cliente.
     
-    Si el cliente paga hasta agosto (end_month=8), el vencimiento es 21 de septiembre
-    (un día antes del próximo día de cobro).
+    Si el cliente paga hasta agosto (end_month=8), el vencimiento es el billing_day de septiembre.
+    Es decir: el mismo billing_day del próximo mes después del período.
     """
     db = get_db()
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -122,20 +122,17 @@ def calculate_due_date(client_id, end_month, end_year):
         next_month = 1
         next_year += 1
     
-    # Crear fecha del próximo día de cobro
+    # Crear fecha del próximo día de cobro (el vencimiento es el billing_day del próximo mes)
     try:
-        next_billing = datetime(next_year, next_month, billing_day)
+        due_date = datetime(next_year, next_month, billing_day)
     except ValueError:
         # Si el día no existe en ese mes (ej: 31 de febrero), usar último día del mes
         if next_month == 2:
-            next_billing = datetime(next_year, 2, 28)
+            due_date = datetime(next_year, 2, 28)
         elif next_month in [4, 6, 9, 11]:
-            next_billing = datetime(next_year, next_month, 30)
+            due_date = datetime(next_year, next_month, 30)
         else:
-            next_billing = datetime(next_year, next_month, 31)
-    
-    # Restar 1 día para obtener el vencimiento (día anterior al próximo cobro)
-    due_date = next_billing - timedelta(days=1)
+            due_date = datetime(next_year, next_month, 31)
     
     return due_date
 
