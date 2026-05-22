@@ -38,7 +38,7 @@ def list_devices():
                     "name": d.name,
                     "ip_address": d.ip_address,
                     "username": d.username,
-                    "description": d.description,
+                    "description": d.description or '',
                     "is_active": d.is_active,
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                     "updated_at": d.updated_at.isoformat() if d.updated_at else None,

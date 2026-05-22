@@ -20,11 +20,23 @@ export default function Devices() {
     setLoading(true);
     getDevices({ page: pageNum, per_page: 10 })
       .then(r => {
-        setDevices(r.data.devices || []);
-        setPagination(r.data || {});
-        setPage(pageNum);
+        const devicesData = r.data?.devices;
+        if (Array.isArray(devicesData)) {
+          setDevices(devicesData);
+          setPagination({
+            total: r.data?.total || 0,
+            total_pages: r.data?.total_pages || 1,
+            current_page: r.data?.current_page || pageNum
+          });
+          setPage(pageNum);
+        } else {
+          setDevices([]);
+        }
       })
-      .catch(() => setDevices([]))
+      .catch(err => {
+        console.error('Error loading devices:', err);
+        setDevices([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -128,7 +140,7 @@ export default function Devices() {
               </TR>
             </thead>
             <tbody>
-              {devices.map(d => (
+              {Array.isArray(devices) && devices.map(d => (
                 <TR key={d.id} className="hover:bg-gray-50">
                   <TD>{d.name}</TD>
                   <TD className="font-mono text-sm">{d.ip_address}</TD>
