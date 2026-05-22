@@ -140,13 +140,39 @@ def calculate_due_date(client_id, end_month, end_year):
     return due_date
 
 
+def calculate_payment_amount(client_id, month, end_month, year, end_year):
+    """Calcular monto total basado en el plan mensual y cantidad de meses.
+    
+    Ejemplo: Plan $500/mes, pago de mayo a agosto (4 meses) = $2000
+    """
+    db = get_db()
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client or not client.plan:
+        return None
+    
+    plan_price = client.plan.price
+    
+    # Calcular cantidad de meses igual a serialize_payment()
+    if end_month >= month and end_year == year:
+        # Mismo año: simple resta
+        months_covered = end_month - month + 1
+    elif end_year > year:
+        # Cruza años: (12 - mes_inicio) + mes_fin + 1
+        months_covered = (12 - month + 1) + end_month
+    else:
+        months_covered = 1
+    
+    return plan_price * months_covered
+
+
 @payments_bp.route("/", methods=["POST"])
 @token_required
 def create_payment():
     """Crear un nuevo pago (puede cubrir múltiples meses)."""
     data = request.get_json()
     
-    required = ["client_id", "amount", "month", "year"]
+    required = ["client_id", "month", "year"]
     if not data or not all(k in data for k in required):
         return jsonify({"detail": f"Campos requeridos: {', '.join(required)}"}), 400
     
@@ -174,10 +200,26 @@ def create_payment():
     if end_year < data.get("year") or (end_year == data.get("year") and end_month < data.get("month")):
         return jsonify({"detail": "Mes final debe ser >= mes inicial"}), 400
     
+    # Calcular amount automáticamente si no viene o es 0
+    if "amount" not in data or not data.get("amount") or data.get("amount") == 0:
+        calculated_amount = calculate_payment_amount(
+            data.get("client_id"), 
+            data.get("month"), 
+            end_month, 
+            data.get("year"), 
+            end_year
+        )
+        if calculated_amount is not None:
+            amount = calculated_amount
+        else:
+            return jsonify({"detail": "No se pudo calcular el monto automáticamente. Proporcione amount o verifique el cliente"}), 400
+    else:
+        amount = data.get("amount")
+    
     db = get_db()
     payment = Payment(
         client_id=data.get("client_id"),
-        amount=data.get("amount"),
+        amount=amount,
         month=data.get("month"),
         end_month=end_month,
         year=data.get("year"),
@@ -204,32 +246,49 @@ def update_payment(payment_id):
         return jsonify({"detail": "Pago no encontrado"}), 404
     
     try:
+        # Track si cambiaron los campos que afectan el monto o vencimiento
+        dates_changed = False
+        
         # Actualizar campos si vienen en la request
         if "client_id" in data:
             payment.client_id = data["client_id"]
-        
-        if "amount" in data:
-            payment.amount = data["amount"]
+            dates_changed = True
         
         if "month" in data:
             payment.month = data["month"]
+            dates_changed = True
         
         if "end_month" in data:
             payment.end_month = data["end_month"]
+            dates_changed = True
         
         if "year" in data:
             payment.year = data["year"]
+            dates_changed = True
         
         if "end_year" in data:
             payment.end_year = data["end_year"]
+            dates_changed = True
         
         # Si se cambió end_month o end_year, recalcular due_date automáticamente
-        if ("end_month" in data or "end_year" in data) and "due_date" not in data:
-            end_month = data.get("end_month", payment.end_month)
-            end_year = data.get("end_year", payment.end_year)
-            calculated_due = calculate_due_date(payment.client_id, end_month, end_year)
+        if dates_changed and "due_date" not in data:
+            calculated_due = calculate_due_date(payment.client_id, payment.end_month, payment.end_year)
             if calculated_due:
                 payment.due_date = calculated_due
+        
+        # Calcular amount automáticamente si cambió el período o cliente Y user NO proporciona amount
+        if dates_changed and ("amount" not in data or not data.get("amount") or data.get("amount") == 0):
+            calculated_amount = calculate_payment_amount(
+                payment.client_id,
+                payment.month,
+                payment.end_month,
+                payment.year,
+                payment.end_year
+            )
+            if calculated_amount is not None:
+                payment.amount = calculated_amount
+        elif "amount" in data and data.get("amount") and data.get("amount") != 0:
+            payment.amount = data["amount"]
         
         if "due_date" in data:
             due_date_str = data["due_date"]
