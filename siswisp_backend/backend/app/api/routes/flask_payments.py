@@ -94,9 +94,24 @@ def list_payments():
     
     if status:
         try:
-            q = q.filter(Payment.status == PaymentStatus[status])
-        except KeyError:
-            return jsonify({"detail": f"Status inválido: {status}"}), 400
+            # Try by name first (PAID, PENDING, OVERDUE)
+            # Then by value (pagado, pendiente, vencido)
+            status_enum = None
+            try:
+                status_enum = PaymentStatus[status]
+            except KeyError:
+                # Try by value
+                for ps in PaymentStatus:
+                    if ps.value == status:
+                        status_enum = ps
+                        break
+            
+            if status_enum:
+                q = q.filter(Payment.status == status_enum)
+            else:
+                return jsonify({"detail": f"Status inválido: {status}"}), 400
+        except Exception as e:
+            return jsonify({"detail": f"Error con status: {str(e)}"}), 400
     
     payments = q.order_by(Payment.due_date.desc()).limit(200).all()
     return jsonify([serialize_payment(p) for p in payments]), 200
