@@ -53,6 +53,30 @@ export default function Payments() {
     }
   };
 
+  const getMonthName = (monthNum) => {
+    try {
+      const date = new Date(2026, monthNum - 1, 1);
+      return format(date, 'MMMM', { locale: es }).charAt(0).toUpperCase() + format(date, 'MMMM', { locale: es }).slice(1);
+    } catch {
+      return monthNum;
+    }
+  };
+
+  const formatPeriodName = (payment) => {
+    if (!payment.period) {
+      return `${getMonthName(payment.month)}/${payment.year}`;
+    }
+    // period es algo como "5/2026 - 8/2026"
+    const parts = payment.period.split(' - ');
+    if (parts.length === 2) {
+      const [start, end] = parts;
+      const [startMonth, startYear] = start.split('/');
+      const [endMonth, endYear] = end.split('/');
+      return `${getMonthName(Number(startMonth))}/${startYear} → ${getMonthName(Number(endMonth))}/${endYear}`;
+    }
+    return payment.period;
+  };
+
   const calculateMonthsCovered = (month, endMonth, year, endYear) => {
     if (endMonth >= month && endYear === year) {
       return endMonth - month + 1;
@@ -192,9 +216,9 @@ export default function Payments() {
             ) : payments.map(p => (
               <TR key={p.id}>
                 <TD mono>#{p.id}</TD>
-                <TD>{getClientName(p.client_id)}</TD>
+                <TD mono>{getClientName(p.client_id)}</TD>
                 <TD mono>${p.amount.toFixed(2)}</TD>
-                <TD mono>{p.period || `${p.month}/${p.year}`}</TD>
+                <TD>{formatPeriodName(p)}</TD>
                 <TD mono>{p.months_covered || 1}</TD>
                 <TD mono>
                   <span style={{ color: p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
@@ -275,7 +299,7 @@ export default function Payments() {
               </div>
             </div>
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
-              📅 Cubre: <strong style={{ color: 'var(--accent)' }}>{form.month}/{form.year} → {form.end_month}/{form.end_year}</strong>
+              📅 Cubre: <strong style={{ color: 'var(--accent)' }}>{getMonthName(form.month)}/{form.year} → {getMonthName(form.end_month)}/{form.end_year}</strong>
               <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)', background: 'rgba(0,212,255,0.05)', padding: '8px 10px', borderRadius: 4 }}>
                 ⏰ Vencimiento calculado automáticamente según día de cobro
               </div>
