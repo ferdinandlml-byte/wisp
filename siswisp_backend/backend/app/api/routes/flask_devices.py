@@ -14,9 +14,12 @@ def list_devices():
     """Listar todos los dispositivos/sectoriales"""
     db = None
     try:
+        print("\n[Devices API] ════════════════════════════════════════")
         print("[Devices API] GET /api/devices/ called")
+        print("[Devices API] Request args:", dict(request.args))
+        
         db = next(get_db())
-        print("[Devices API] Database connection established")
+        print("[Devices API] Database connection established ✓")
         
         # Parámetros de paginación
         page = request.args.get('page', 1, type=int)
@@ -25,38 +28,39 @@ def list_devices():
         if page < 1:
             page = 1
         
-        print(f"[Devices API] Requesting page {page}, {per_page} items per page")
+        print(f"[Devices API] Page={page}, per_page={per_page}")
         
         # Contar total
         total = db.query(Device).count()
         print(f"[Devices API] Total devices in database: {total}")
         
-        total_pages = (total + per_page - 1) // per_page
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 1
         
         # Obtener dispositivos
         devices = db.query(Device).order_by(desc(Device.created_at)).offset(
             (page - 1) * per_page
         ).limit(per_page).all()
         
-        print(f"[Devices API] Retrieved {len(devices)} devices for page {page}")
+        print(f"[Devices API] Retrieved {len(devices)} devices for this page")
         
-        # SIEMPRE devolver estructura correcta
+        # Serializar dispositivos
         devices_list = []
-        for d in devices:
+        for i, d in enumerate(devices):
             try:
                 device_dict = {
-                    "id": d.id,
-                    "name": d.name or '',
-                    "ip_address": d.ip_address or '',
-                    "username": d.username or '',
-                    "description": d.description or '',
+                    "id": int(d.id) if d.id else None,
+                    "name": str(d.name) if d.name else "Sin nombre",
+                    "ip_address": str(d.ip_address) if d.ip_address else "0.0.0.0",
+                    "username": str(d.username) if d.username else "",
+                    "description": str(d.description) if d.description else "",
                     "is_active": bool(d.is_active) if d.is_active is not None else True,
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                     "updated_at": d.updated_at.isoformat() if d.updated_at else None,
                 }
                 devices_list.append(device_dict)
+                print(f"[Devices API]   Device {i+1}: {device_dict['name']} (ID: {device_dict['id']}) ✓")
             except Exception as device_err:
-                print(f"[Devices API] Error serializing device {d.id}: {str(device_err)}")
+                print(f"[Devices API]   Device {i+1}: ERROR: {str(device_err)}")
                 continue
         
         response = {
@@ -67,20 +71,25 @@ def list_devices():
             "has_next": page < total_pages,
             "has_prev": page > 1,
         }
-        print(f"[Devices API] Returning {len(devices_list)} devices, response structure valid")
+        
+        print(f"[Devices API] Response ready: {len(devices_list)}/{total} devices")
+        print(f"[Devices API] Response structure: devices={len(response['devices'])}, pages={response['total_pages']}")
+        print("[Devices API] ════════════════════════════════════════\n")
+        
         return jsonify(response), 200
     
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"[Devices API] ERROR: {str(e)}")
+        print(f"[Devices API] ❌ ERROR: {str(e)}")
         print(f"[Devices API] TRACEBACK:\n{error_trace}")
+        print("[Devices API] ════════════════════════════════════════\n")
         
         # Devolver estructura aunque haya error
         return jsonify({
             "devices": [],
             "current_page": 1,
-            "total_pages": 0,
+            "total_pages": 1,
             "total": 0,
             "has_next": False,
             "has_prev": False,
@@ -130,9 +139,16 @@ def get_device(device_id):
 @devices_bp.route('/', methods=['POST'])
 def create_device():
     """Crear un nuevo dispositivo/sectorial"""
+    db = None
     try:
+        print("\n[Devices API] ════════════════════════════════════════")
+        print("[Devices API] POST /api/devices/ called")
+        
         data = request.get_json()
+        print(f"[Devices API] Received data: {data}")
+        
         db = next(get_db())
+        print("[Devices API] Database connection established ✓")
         
         # Validar campos requeridos
         if not data.get('name'):
@@ -147,9 +163,12 @@ def create_device():
         if not data.get('password'):
             return jsonify({"detail": "La contraseña es requerida"}), 400
         
+        print("[Devices API] All validations passed ✓")
+        
         # Verificar que no exista una IP duplicada
         existing = db.query(Device).filter(Device.ip_address == data['ip_address']).first()
         if existing:
+            print(f"[Devices API] IP duplicate found: {data['ip_address']}")
             return jsonify({"detail": f"Ya existe un dispositivo con la IP {data['ip_address']}"}), 400
         
         # Crear dispositivo
@@ -162,9 +181,17 @@ def create_device():
             is_active=data.get('is_active', True)
         )
         
+        print(f"[Devices API] Device object created (not yet in DB)")
+        
         db.add(device)
+        print(f"[Devices API] Device added to session")
+        
         db.commit()
+        print(f"[Devices API] Commit successful")
+        
         db.refresh(device)
+        print(f"[Devices API] Device refreshed from DB - ID: {device.id}")
+        print("[Devices API] ════════════════════════════════════════\n")
         
         return jsonify({
             "id": device.id,
@@ -177,8 +204,23 @@ def create_device():
         }), 201
     
     except Exception as e:
-        db.rollback()
+        if db:
+            try:
+                db.rollback()
+            except:
+                pass
+        import traceback
+        print(f"[Devices API] ❌ ERROR: {str(e)}")
+        print(f"[Devices API] TRACEBACK:\n{traceback.format_exc()}")
+        print("[Devices API] ════════════════════════════════════════\n")
         return jsonify({"detail": f"Error al crear dispositivo: {str(e)}"}), 500
+    
+    finally:
+        if db:
+            try:
+                db.close()
+            except:
+                pass
 
 
 # ──────────────────────────────────────────────

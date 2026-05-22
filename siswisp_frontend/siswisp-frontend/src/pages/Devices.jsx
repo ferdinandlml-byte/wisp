@@ -30,21 +30,38 @@ export default function Devices() {
 
   // Cargar dispositivos
   const loadDevices = (pageNum = 1) => {
+    console.log('[Devices] LOAD: Starting to load devices for page', pageNum);
     setLoading(true);
+    
     getDevices({ page: pageNum, per_page: 10 })
-      .then(({ data }) => {
-        if (data && data.devices) {
+      .then((response) => {
+        console.log('[Devices] LOAD: Full axios response:', response);
+        
+        // Axios envuelve la respuesta en response.data
+        const data = response.data;
+        console.log('[Devices] LOAD: Extracted data:', data);
+        console.log('[Devices] LOAD: data.devices:', data?.devices);
+        console.log('[Devices] LOAD: Array.isArray(data.devices)?', Array.isArray(data?.devices));
+        console.log('[Devices] LOAD: data.devices length:', data?.devices?.length);
+        
+        if (data && data.devices && Array.isArray(data.devices)) {
+          console.log('[Devices] LOAD: Setting devices array with', data.devices.length, 'items');
           setDevices(data.devices);
           setTotal(data.total || 0);
           setTotalPages(data.total_pages || 1);
           setHasNext(data.has_next === true);
           setHasPrev(data.has_prev === true);
           setPage(pageNum);
+          console.log('[Devices] LOAD: State updated successfully');
+        } else {
+          console.error('[Devices] LOAD: Response structure invalid', { data, hasDevices: !!data?.devices, isArray: Array.isArray(data?.devices) });
+          setDevices([]);
         }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Error:', err);
+        console.error('[Devices] LOAD: Error loading devices:', err);
+        console.error('[Devices] LOAD: Error response:', err.response?.data);
         setDevices([]);
         setLoading(false);
         toast.error('Error al cargar dispositivos');
@@ -106,16 +123,27 @@ export default function Devices() {
 
     setSaving(true);
     try {
+      console.log('[Devices] SAVE: Starting save with data:', form);
+      
       if (modalMode === 'create') {
+        console.log('[Devices] SAVE: Creating new device');
         await createDevice(form);
         toast.success('Dispositivo creado');
       } else {
+        console.log('[Devices] SAVE: Updating device', selectedId);
         await updateDevice(selectedId, form);
         toast.success('Dispositivo actualizado');
       }
+      
+      console.log('[Devices] SAVE: Device saved, closing modal and reloading');
       closeModal();
-      loadDevices(page);
+      
+      // IMPORTANTE: Recargar desde la página 1
+      console.log('[Devices] SAVE: Reloading devices list from page 1');
+      loadDevices(1);
+      
     } catch (err) {
+      console.error('[Devices] SAVE: Error:', err);
       toast.error(err.response?.data?.detail || 'Error al guardar');
     } finally {
       setSaving(false);
@@ -140,6 +168,15 @@ export default function Devices() {
       loadDevices(newPage);
     }
   };
+
+  // Render - Logging de estado
+  console.log('[Devices] RENDER: Current state:', {
+    loading,
+    devicesCount: devices.length,
+    totalPages,
+    page,
+    devicesArray: devices
+  });
 
   // RENDER - SUPER SIMPLE
   return (
