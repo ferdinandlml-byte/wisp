@@ -278,13 +278,9 @@ export default function Payments() {
                 <TD>{formatPeriodName(p)}</TD>
                 <TD mono>{p.months_covered || 1}</TD>
                 <TD mono>
-                  {p.status === 'PAID' && p.paid_at ? (
-                    <span style={{ color: 'var(--green)' }}>✓ {format(new Date(p.paid_at), 'dd/MM/yyyy')}</span>
-                  ) : (
-                    <span style={{ color: p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
-                      {formatEndDateLong(p) || format(new Date(p.due_date), 'dd/MM/yyyy')}
-                    </span>
-                  )}
+                  <span style={{ color: p.status === 'PAID' ? 'var(--green)' : p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
+                    {p.status === 'PAID' ? '✓ ' : ''}{formatEndDateLong(p) || format(new Date(p.due_date), 'dd/MM/yyyy')}
+                  </span>
                 </TD>
                 <TD><StatusTag status={p.status === 'PAID' ? 'pagado' : p.status === 'OVERDUE' ? 'vencido' : 'pendiente'} /></TD>
                 <TD style={{ display: 'flex', gap: 6 }}>
