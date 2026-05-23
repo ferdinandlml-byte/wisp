@@ -75,6 +75,24 @@ export default function Payments() {
     return payment.period;
   };
 
+  // Formatea la fecha de terminación como "22 de septiembre de 2026"
+  const formatEndDateLong = (payment) => {
+    try {
+      if (payment.end_month && payment.end_year) {
+        const endMonth = Number(payment.end_month);
+        const endYear = Number(payment.end_year);
+        // Usar el día de la fecha de vencimiento o 22 como default
+        const dueDate = new Date(payment.due_date);
+        const day = dueDate ? dueDate.getDate() : 22;
+        const date = new Date(endYear, endMonth - 1, day);
+        return format(date, "dd 'de' MMMM 'de' yyyy", { locale: es });
+      }
+    } catch (e) {
+      console.error('Error formatting end date:', e);
+    }
+    return '';
+  };
+
   const calculateMonthsCovered = (month, endMonth, year, endYear) => {
     const m = Number(month);
     const em = Number(endMonth);
@@ -261,7 +279,7 @@ export default function Payments() {
                     <span style={{ color: 'var(--green)' }}>✓ {format(new Date(p.paid_at), 'dd/MM/yyyy')}</span>
                   ) : (
                     <span style={{ color: p.status === 'OVERDUE' ? 'var(--red)' : 'inherit' }}>
-                      {format(new Date(p.due_date), 'dd/MM/yyyy')}
+                      {formatEndDateLong(p) || format(new Date(p.due_date), 'dd/MM/yyyy')}
                     </span>
                   )}
                 </TD>
