@@ -118,15 +118,57 @@ export function Modal({ open, onClose, title, children, width = 480 }) {
 
 // ── Status Tag ───────────────────────────────────────────────────────────────
 export function StatusTag({ status }) {
-  const map = {
-    activo:     'tag tag-active',
-    suspendido: 'tag tag-suspended',
-    cancelado:  'tag tag-cancelled',
-    pendiente:  'tag tag-pending',
-    pagado:     'tag tag-paid',
-    vencido:    'tag tag-overdue',
+  const styles = {
+    pagado: {
+      background: '#10b981',
+      color: '#fff',
+      text: '✓ Pagado'
+    },
+    pendiente: {
+      background: '#f59e0b',
+      color: '#fff',
+      text: '⏳ Pendiente'
+    },
+    vencido: {
+      background: '#ef4444',
+      color: '#fff',
+      text: '⚠ Vencido'
+    },
+    activo: {
+      background: '#10b981',
+      color: '#fff',
+      text: '✓ Activo'
+    },
+    suspendido: {
+      background: '#f59e0b',
+      color: '#fff',
+      text: '⏸ Suspendido'
+    },
+    cancelado: {
+      background: '#ef4444',
+      color: '#fff',
+      text: '✕ Cancelado'
+    },
   };
-  return <span className={map[status] || 'tag'}>{status}</span>;
+
+  const style = styles[status] || { background: '#6b7280', color: '#fff', text: status };
+
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 12px',
+      borderRadius: '6px',
+      fontSize: '13px',
+      fontWeight: '600',
+      background: style.background,
+      color: style.color,
+      whiteSpace: 'nowrap',
+    }}>
+      {style.text}
+    </span>
+  );
 }
 
 // ── Table ────────────────────────────────────────────────────────────────────

@@ -267,8 +267,10 @@ export default function Payments() {
           <Table headers={['ID', 'Cliente', 'Monto', 'Período', 'Meses cubiertos', 'Vencimiento', 'Estado', 'Acciones']}>
             {payments.length === 0 ? (
               <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Sin pagos registrados</td></tr>
-            ) : payments.map(p => (
-              <TR key={p.id}>
+            ) : payments.map(p => {
+              const statusColor = p.status === 'PAID' ? '#10b981' : p.status === 'OVERDUE' ? '#ef4444' : '#f59e0b';
+              return (
+              <TR key={p.id} style={{ borderLeftWidth: 4, borderLeftColor: statusColor, borderLeftStyle: 'solid' }}>
                 <TD mono>#{p.id}</TD>
                 <TD mono>{getClientName(p.client_id)}</TD>
                 <TD mono>${p.amount.toFixed(2)}</TD>
@@ -295,7 +297,8 @@ export default function Payments() {
                   )}
                 </TD>
               </TR>
-            ))}
+            );
+            })}
           </Table>
         )}
       </Card>
