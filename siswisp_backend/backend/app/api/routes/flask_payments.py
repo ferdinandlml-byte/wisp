@@ -51,17 +51,48 @@ def serialize_payment(payment):
     end_month = payment.end_month if payment.end_month is not None else payment.month
     end_year = payment.end_year if payment.end_year is not None else payment.year
     
-    # Calcular cantidad de meses cubiertos (duración)
-    # months_covered = (end_month - month) + 1 (inclusive count)
-    # Example: May (5) to August (8) = (8 - 5) + 1 = 4 months
-    if end_month >= payment.month and end_year == payment.year:
-        # Mismo año: simple resta + 1 para contar inclusivo
-        months_covered = (end_month - payment.month) + 1
-    elif end_year > payment.year:
-        # Cruza años: (12 - mes_inicio) + mes_fin + 1
-        months_covered = (12 - payment.month) + end_month + 1
-    else:
-        months_covered = 0
+    # Calcular cantidad de meses cubiertos considerando los días
+    # Obtener el billing_day del cliente para cálculo preciso
+    db = SessionLocal()
+    try:
+        client = db.query(Client).filter(Client.id == payment.client_id).first()
+        billing_day = client.billing_day if client and client.billing_day else 22  # default 22
+    except:
+        billing_day = 22
+    finally:
+        db.close()
+    
+    # Calcular fechas de inicio y fin usando billing_day
+    try:
+        start_date = datetime(payment.year, payment.month, billing_day)
+        # Para end_date, manejar meses que no tengan ese día
+        try:
+            end_date = datetime(end_year, end_month, billing_day)
+        except ValueError:
+            # Si el día no existe en ese mes (ej: 31 febrero), usar último día del mes
+            if end_month == 2:
+                end_date = datetime(end_year, 2, 28)
+            elif end_month in [4, 6, 9, 11]:
+                end_date = datetime(end_year, end_month, 30)
+            else:
+                end_date = datetime(end_year, end_month, 31)
+        
+        # Calcular diferencia en días y convertir a meses (30 días = 1 mes)
+        days_diff = (end_date - start_date).days
+        months_covered = round(days_diff / 30)  # Redondear a meses más cercano
+        
+        # Asegurar mínimo 1 mes
+        if months_covered < 1:
+            months_covered = 1
+            
+    except Exception as e:
+        # Fallback a cálculo por meses si hay error con fechas
+        if end_month >= payment.month and end_year == payment.year:
+            months_covered = (end_month - payment.month) + 1
+        elif end_year > payment.year:
+            months_covered = (12 - payment.month) + end_month + 1
+        else:
+            months_covered = 1
     
     return {
         "id": payment.id,
@@ -150,7 +181,8 @@ def calculate_due_date(client_id, end_month, end_year):
 def calculate_payment_amount(client_id, month, end_month, year, end_year):
     """Calcular monto total basado en el plan mensual y cantidad de meses.
     
-    Ejemplo: Plan $500/mes, pago de mayo a agosto (4 meses) = $2000
+    Calcula considerando los días reales entre las fechas usando billing_day.
+    Ejemplo: Plan $500/mes, pago de 22 mayo a 22 agosto (3 meses) = $1500
     """
     db = get_db()
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -159,16 +191,39 @@ def calculate_payment_amount(client_id, month, end_month, year, end_year):
         return None
     
     plan_price = client.plan.price
+    billing_day = client.billing_day if client.billing_day else 22
     
-    # Calcular cantidad de meses igual a serialize_payment()
-    if end_month >= month and end_year == year:
-        # Mismo año: (end_month - month) + 1 para contar inclusivo
-        months_covered = (end_month - month) + 1
-    elif end_year > year:
-        # Cruza años: (12 - month + 1) + end_month
-        months_covered = (12 - month + 1) + end_month
-    else:
-        months_covered = 1
+    # Calcular cantidad de meses considerando los días
+    try:
+        start_date = datetime(year, month, billing_day)
+        # Para end_date, manejar meses que no tengan ese día
+        try:
+            end_date = datetime(end_year, end_month, billing_day)
+        except ValueError:
+            # Si el día no existe en ese mes (ej: 31 febrero), usar último día del mes
+            if end_month == 2:
+                end_date = datetime(end_year, 2, 28)
+            elif end_month in [4, 6, 9, 11]:
+                end_date = datetime(end_year, end_month, 30)
+            else:
+                end_date = datetime(end_year, end_month, 31)
+        
+        # Calcular diferencia en días y convertir a meses (30 días = 1 mes)
+        days_diff = (end_date - start_date).days
+        months_covered = round(days_diff / 30)
+        
+        # Asegurar mínimo 1 mes
+        if months_covered < 1:
+            months_covered = 1
+            
+    except Exception as e:
+        # Fallback a cálculo por meses si hay error
+        if end_month >= month and end_year == year:
+            months_covered = (end_month - month) + 1
+        elif end_year > year:
+            months_covered = (12 - month + 1) + end_month
+        else:
+            months_covered = 1
     
     return plan_price * months_covered
 

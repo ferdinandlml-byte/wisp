@@ -96,20 +96,32 @@ export default function Payments() {
     return '';
   };
 
-  const calculateMonthsCovered = (month, endMonth, year, endYear) => {
+  const calculateMonthsCovered = (month, endMonth, year, endYear, billingDay = 22) => {
     const m = Number(month);
     const em = Number(endMonth);
     const y = Number(year);
     const ey = Number(endYear);
+    const bd = Number(billingDay) || 22;
     
-    // months_covered = (end_month - start_month) + 1 (inclusive count)
-    // Example: May (5) to August (8) = (8 - 5) + 1 = 4 months
-    if (em >= m && ey === y) {
-      return (em - m) + 1;
-    } else if (ey > y) {
-      return (12 - m) + em + 1;
+    // Calculate considering actual days between dates
+    // Example: 22 May to 22 August = 92 days / 30 = ~3 months
+    try {
+      const startDate = new Date(y, m - 1, bd);  // month is 0-indexed in Date
+      const endDate = new Date(ey, em - 1, bd);
+      
+      const daysDiff = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
+      const monthsCovered = Math.round(daysDiff / 30);
+      
+      return Math.max(1, monthsCovered); // Minimum 1 month
+    } catch {
+      // Fallback to month counting if error
+      if (em >= m && ey === y) {
+        return (em - m) + 1;
+      } else if (ey > y) {
+        return (12 - m) + em + 1;
+      }
+      return 1;
     }
-    return 0;
   };
 
   const calculateEndMonthYear = (startMonth, startYear, monthsDuration) => {
@@ -169,7 +181,9 @@ export default function Payments() {
 
   const openEdit = (payment) => {
     // Calculate months_duration from payment month/end_month/year/end_year
-    const monthsCovered = calculateMonthsCovered(payment.month, payment.end_month, payment.year, payment.end_year);
+    const client = clients.find(c => c.id === payment.client_id);
+    const billingDay = client?.billing_day || 22;
+    const monthsCovered = calculateMonthsCovered(payment.month, payment.end_month, payment.year, payment.end_year, billingDay);
     
     setSelected(payment);
     setForm({
