@@ -444,9 +444,13 @@ def get_stats():
 def fix_months_calculation():
     """
     Corregir el cálculo de meses para pagos existentes.
-    Los pagos viejos fueron creados con fórmula: endMonth = start + duration
-    Ahora es: endMonth = start + (duration - 1)
-    Entonces: end_month correcto = end_month actual - 1
+    
+    Fórmula CORRECTA: endMonth = startMonth + monthsDuration
+    - 4 meses desde mayo: end = 5 + 4 = 9 (septiembre)
+    - Vencimiento: 22 de septiembre
+    
+    Los pagos viejos fueron creados con fórmula INCORRECTA: endMonth = start + (duration - 1)
+    - Así que necesitan INCREMENTARSE en 1
     """
     try:
         db = get_db()
@@ -456,34 +460,38 @@ def fix_months_calculation():
         corrected = []
         
         for payment in payments:
-            # Calcular el months_covered correcto
-            if payment.end_month > payment.month and payment.end_year == payment.year:
-                # Mismo año: sin cambio necesario si la lógica es correcta
-                # Pero la vieja creó end_month = month + duration
-                # Nuevo es end_month = month + (duration - 1)
-                # Entonces nuevo_end = old_end - 1
-                pass
-            elif payment.end_year > payment.year:
-                pass
-            else:
+            # Obtener cliente para verificar plan
+            client = db.query(Client).filter(Client.id == payment.client_id).first()
+            if not client or not client.plan:
                 continue
             
-            # Si end_month > month + 1, es probable que esté mal
-            # Aplicar corrección: end_month -= 1
-            if payment.end_month > payment.month + 1:
-                # Viejos datos: reducir end_month en 1
+            # Calcular months_covered esperado del amount
+            months_covered_from_amount = payment.amount / float(client.plan.price)
+            
+            # Calcular end_month que DEBERÍA tener
+            expected_end_month = payment.month + months_covered_from_amount
+            
+            # Si end_month es menor (fórmula vieja), incrementar en 1
+            if payment.end_month < expected_end_month - 0.5:  # Pequeño margen para redondeo
                 old_end = payment.end_month
-                new_end = old_end - 1
                 
-                # Validar que no sea menor que month
-                if new_end >= payment.month:
-                    payment.end_month = new_end
-                    corrected.append({
-                        "id": payment.id,
-                        "from": f"{payment.month}/{payment.year} - {old_end}/{payment.end_year}",
-                        "to": f"{payment.month}/{payment.year} - {new_end}/{payment.end_year}",
-                        "old_amount": payment.amount,
-                    })
+                # Manejar transición de año
+                new_end = old_end + 1
+                new_year = payment.end_year
+                if new_end > 12:
+                    new_end -= 12
+                    new_year += 1
+                
+                payment.end_month = new_end
+                payment.end_year = new_year
+                
+                corrected.append({
+                    "id": payment.id,
+                    "client_id": payment.client_id,
+                    "from": f"month={old_end}, year={payment.end_year}",
+                    "to": f"month={new_end}, year={new_year}",
+                    "amount": str(payment.amount),
+                })
         
         db.commit()
         

@@ -131,9 +131,10 @@ export default function Payments() {
     const startY = Number(startYear);
     
     // Duration of N months: if start=5 (May) and duration=4
-    // Coverage: May(5), June(6), July(7), August(8)
-    // So endMonth = start + (duration - 1) = 5 + 3 = 8
-    let endMonth = start + (duration - 1);
+    // Periods: May→June(1), June→July(2), July→August(3), August→September(4)
+    // Each period ends on billing_day of next month
+    // So endMonth = start + duration = 5 + 4 = 9 (September)
+    let endMonth = start + duration;
     let endYear = startY;
     
     while (endMonth > 12) {
