@@ -382,3 +382,61 @@ def get_stats():
         "monthly_income": float(monthly_income),
         "pending_income": float(pending_income),
     }), 200
+
+
+@payments_bp.route("/admin/fix-months", methods=["POST"])
+@token_required
+def fix_months_calculation():
+    """
+    Corregir el cálculo de meses para pagos existentes.
+    Los pagos viejos fueron creados con fórmula: endMonth = start + duration
+    Ahora es: endMonth = start + (duration - 1)
+    Entonces: end_month correcto = end_month actual - 1
+    """
+    try:
+        db = get_db()
+        
+        # Obtener todos los pagos
+        payments = db.query(Payment).all()
+        corrected = []
+        
+        for payment in payments:
+            # Calcular el months_covered correcto
+            if payment.end_month > payment.month and payment.end_year == payment.year:
+                # Mismo año: sin cambio necesario si la lógica es correcta
+                # Pero la vieja creó end_month = month + duration
+                # Nuevo es end_month = month + (duration - 1)
+                # Entonces nuevo_end = old_end - 1
+                pass
+            elif payment.end_year > payment.year:
+                pass
+            else:
+                continue
+            
+            # Si end_month > month + 1, es probable que esté mal
+            # Aplicar corrección: end_month -= 1
+            if payment.end_month > payment.month + 1:
+                # Viejos datos: reducir end_month en 1
+                old_end = payment.end_month
+                new_end = old_end - 1
+                
+                # Validar que no sea menor que month
+                if new_end >= payment.month:
+                    payment.end_month = new_end
+                    corrected.append({
+                        "id": payment.id,
+                        "from": f"{payment.month}/{payment.year} - {old_end}/{payment.end_year}",
+                        "to": f"{payment.month}/{payment.year} - {new_end}/{payment.end_year}",
+                        "old_amount": payment.amount,
+                    })
+        
+        db.commit()
+        
+        return jsonify({
+            "message": f"Se corrigieron {len(corrected)} pagos",
+            "corrected_payments": corrected,
+        }), 200
+    
+    except Exception as e:
+        db.rollback()
+        return jsonify({"detail": str(e)}), 500

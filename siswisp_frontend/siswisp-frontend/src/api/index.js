@@ -50,6 +50,7 @@ export const getPayments = (params) => api.get('/api/payments/', { params });
 export const markPaid = (id) => api.post(`/api/payments/${id}/mark-paid`);
 export const createPayment = (data) => api.post('/api/payments/', data);
 export const updatePayment = (id, data) => api.put(`/api/payments/${id}`, data);
+export const fixPaymentMonths = () => api.post('/api/payments/admin/fix-months');
 
 export const getDashboardStats = () => api.get('/api/dashboard/stats');
 
