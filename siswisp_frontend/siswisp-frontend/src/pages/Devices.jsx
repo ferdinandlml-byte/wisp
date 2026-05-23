@@ -30,30 +30,40 @@ export default function Devices() {
 
   // Cargar dispositivos
   const loadDevices = (pageNum = 1) => {
-    console.log('[Devices] LOAD START:', pageNum);
+    console.log('═══ [Devices] LOAD START ═══');
+    console.log('Page:', pageNum);
     setLoading(true);
     
     getDevices({ page: pageNum, per_page: 10 })
       .then((response) => {
-        console.log('[Devices] RESPONSE:', response.data);
+        console.log('═══ [Devices] GOT RESPONSE ═══');
+        console.log('Full response:', response);
+        console.log('response.data:', response.data);
         const data = response.data;
+        console.log('data.devices:', data?.devices);
+        console.log('Is array?:', Array.isArray(data?.devices));
+        console.log('Length:', data?.devices?.length);
         
         if (data?.devices && Array.isArray(data.devices)) {
-          console.log('[Devices] FOUND', data.devices.length, 'devices');
+          console.log('✅ Setting devices:', data.devices.length, 'items');
+          console.log('Items:', data.devices);
           setDevices(data.devices);
           setTotal(data.total || 0);
           setTotalPages(data.total_pages || 1);
           setHasNext(data.has_next || false);
           setHasPrev(data.has_prev || false);
           setPage(pageNum);
+          console.log('✅ State updated');
         } else {
-          console.error('[Devices] INVALID RESPONSE:', data);
+          console.error('❌ INVALID RESPONSE:', data);
           setDevices([]);
         }
         setLoading(false);
+        console.log('═══ [Devices] LOAD END ═══');
       })
       .catch((err) => {
-        console.error('[Devices] ERROR:', err);
+        console.error('❌ [Devices] ERROR:', err);
+        console.error('Error response:', err.response?.data);
         setDevices([]);
         setLoading(false);
         toast.error('Error al cargar dispositivos');
@@ -114,15 +124,24 @@ export default function Devices() {
     }
 
     setSaving(true);
+    console.log('═══ [Devices] SAVE START ═══');
+    console.log('Mode:', modalMode);
+    console.log('Form data:', form);
+    
     try {
       if (modalMode === 'create') {
-        await createDevice(form);
+        console.log('Creating device...');
+        const createResp = await createDevice(form);
+        console.log('✅ Create response:', createResp);
         toast.success('Dispositivo creado');
       } else {
-        await updateDevice(selectedId, form);
+        console.log('Updating device', selectedId);
+        const updateResp = await updateDevice(selectedId, form);
+        console.log('✅ Update response:', updateResp);
         toast.success('Dispositivo actualizado');
       }
       
+      console.log('Closing modal and resetting form...');
       setModalOpen(false);
       setForm({
         name: '',
@@ -133,14 +152,19 @@ export default function Devices() {
         is_active: true,
       });
       
-      // Recargar
-      setTimeout(() => loadDevices(1), 300);
+      console.log('Waiting 300ms before reload...');
+      setTimeout(() => {
+        console.log('NOW RELOADING...');
+        loadDevices(1);
+      }, 300);
       
     } catch (err) {
-      console.error('[Devices] SAVE ERROR:', err);
+      console.error('❌ [Devices] SAVE ERROR:', err);
+      console.error('Error details:', err.response?.data);
       toast.error(err.response?.data?.detail || 'Error al guardar');
     } finally {
       setSaving(false);
+      console.log('═══ [Devices] SAVE END ═══');
     }
   };
 
@@ -190,14 +214,14 @@ export default function Devices() {
       {/* Estado: Cargando */}
       {loading && (
         <div className="text-center py-8 text-gray-500">
-          Cargando dispositivos...
+          ⏳ Cargando dispositivos...
         </div>
       )}
 
       {/* Estado: Sin dispositivos */}
       {!loading && (!devices || devices.length === 0) && (
         <Card className="text-center py-8 text-gray-500">
-          No hay dispositivos configurados
+          📭 No hay dispositivos configurados
         </Card>
       )}
 
