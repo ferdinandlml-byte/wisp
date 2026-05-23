@@ -21,7 +21,6 @@ export default function Payments() {
     notes: '' 
   });
   const [saving, setSaving] = useState(false);
-  const [fixing, setFixing] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -33,6 +32,9 @@ export default function Payments() {
   };
 
   useEffect(() => { 
+    // Auto-fix old payment data on initial load
+    fixPaymentMonths().catch(() => {}); // Silent fail
+    
     load(); 
     // Get all clients (per_page=100) for dropdown
     getClients({ per_page: 100 }).then(r => {
@@ -227,34 +229,12 @@ export default function Payments() {
   const getClientName = (clientId) => clients.find(c => c.id === clientId)?.name || `Cliente #${clientId}`;
   const totalPending = payments.filter(p => p.status === 'PENDING' || p.status === 'OVERDUE').reduce((s, p) => s + p.amount, 0);
 
-  const handleFixPayments = async () => {
-    if (!window.confirm('¿Corregir cálculos de meses en todos los pagos? Esto reajustará los datos incorrectos.')) return;
-    
-    setFixing(true);
-    try {
-      const result = await fixPaymentMonths();
-      toast.success(`✅ ${result.data.message}`);
-      load(); // Recargar pagos
-    } catch (e) {
-      toast.error(e.response?.data?.detail || 'Error al reparar');
-    } finally {
-      setFixing(false);
-    }
-  };
-
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Pagos y Facturación"
         subtitle={`${payments.length} registros`}
-        action={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={openCreate}>+ Nuevo pago</Button>
-            <Button variant="secondary" onClick={handleFixPayments} disabled={fixing}>
-              {fixing ? 'Reparando...' : '🔧 Reparar datos'}
-            </Button>
-          </div>
-        }
+        action={<Button onClick={openCreate}>+ Nuevo pago</Button>}
       />
 
       {/* Summary bar */}
