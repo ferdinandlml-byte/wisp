@@ -99,12 +99,12 @@ export default function Payments() {
     const y = Number(year);
     const ey = Number(endYear);
     
-    // months_covered = end_month - start_month (without +1)
-    // Example: May (5) to June (6) = 6 - 5 = 1 month duration
+    // months_covered = (end_month - start_month) + 1 (inclusive count)
+    // Example: May (5) to August (8) = (8 - 5) + 1 = 4 months
     if (em >= m && ey === y) {
-      return em - m;
+      return (em - m) + 1;
     } else if (ey > y) {
-      return (12 - m) + em;
+      return (12 - m) + em + 1;
     }
     return 0;
   };
@@ -115,9 +115,10 @@ export default function Payments() {
     const duration = Number(monthsDuration);
     const startY = Number(startYear);
     
-    // Duration of N months means coverage extends N months forward
-    // Example: 1 month from May (5) = coverage through June (6) = 5 + 1 = 6
-    let endMonth = start + duration;
+    // Duration of N months: if start=5 (May) and duration=4
+    // Coverage: May(5), June(6), July(7), August(8)
+    // So endMonth = start + (duration - 1) = 5 + 3 = 8
+    let endMonth = start + (duration - 1);
     let endYear = startY;
     
     while (endMonth > 12) {

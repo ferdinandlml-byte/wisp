@@ -52,14 +52,14 @@ def serialize_payment(payment):
     end_year = payment.end_year if payment.end_year is not None else payment.year
     
     # Calcular cantidad de meses cubiertos (duración)
-    # months_covered = end_month - month (without +1)
-    # Example: May (5) to June (6) = 6 - 5 = 1 month duration
+    # months_covered = (end_month - month) + 1 (inclusive count)
+    # Example: May (5) to August (8) = (8 - 5) + 1 = 4 months
     if end_month >= payment.month and end_year == payment.year:
-        # Mismo año: simple resta
-        months_covered = end_month - payment.month
+        # Mismo año: simple resta + 1 para contar inclusivo
+        months_covered = (end_month - payment.month) + 1
     elif end_year > payment.year:
-        # Cruza años: (12 - mes_inicio) + mes_fin
-        months_covered = (12 - payment.month) + end_month
+        # Cruza años: (12 - mes_inicio) + mes_fin + 1
+        months_covered = (12 - payment.month) + end_month + 1
     else:
         months_covered = 0
     
@@ -162,10 +162,10 @@ def calculate_payment_amount(client_id, month, end_month, year, end_year):
     
     # Calcular cantidad de meses igual a serialize_payment()
     if end_month >= month and end_year == year:
-        # Mismo año: simple resta
-        months_covered = end_month - month + 1
+        # Mismo año: (end_month - month) + 1 para contar inclusivo
+        months_covered = (end_month - month) + 1
     elif end_year > year:
-        # Cruza años: (12 - mes_inicio) + mes_fin + 1
+        # Cruza años: (12 - month + 1) + end_month
         months_covered = (12 - month + 1) + end_month
     else:
         months_covered = 1
